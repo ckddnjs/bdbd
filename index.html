@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎲 보드게임 동호회</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0e17;
+    --surface: #1a1825;
+    --card: #221f35;
+    --accent: #ff6b35;
+    --accent2: #ffd23f;
+    --accent3: #06d6a0;
+    --text: #fffffe;
+    --muted: #a7a9be;
+    --border: #2e2b45;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── 로그인 화면 ── */
+  #login-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .login-bg {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 50% at 20% 30%, rgba(255,107,53,0.12) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 40% at 80% 70%, rgba(6,214,160,0.08) 0%, transparent 60%);
+  }
+
+  .dice-float {
+    position: absolute;
+    font-size: 3rem;
+    opacity: 0.06;
+    animation: floatDice 8s ease-in-out infinite;
+    user-select: none;
+  }
+  .dice-float:nth-child(1) { top: 10%; left: 8%; animation-delay: 0s; font-size: 4rem; }
+  .dice-float:nth-child(2) { top: 60%; left: 5%; animation-delay: 2s; }
+  .dice-float:nth-child(3) { top: 20%; right: 10%; animation-delay: 1s; font-size: 5rem; }
+  .dice-float:nth-child(4) { bottom: 15%; right: 8%; animation-delay: 3s; }
+  .dice-float:nth-child(5) { bottom: 30%; left: 20%; animation-delay: 4s; font-size: 2.5rem; }
+
+  @keyframes floatDice {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    33% { transform: translateY(-20px) rotate(10deg); }
+    66% { transform: translateY(10px) rotate(-5deg); }
+  }
+
+  .login-box {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    padding: 3rem 3.5rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    width: 380px;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+    animation: fadeUp 0.6s ease;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .login-logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 3.5rem;
+    letter-spacing: 3px;
+    color: var(--accent);
+    line-height: 1;
+    margin-bottom: 0.3rem;
+  }
+
+  .login-subtitle {
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-bottom: 2.5rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .login-label {
+    font-size: 0.75rem;
+    color: var(--muted);
+    text-align: left;
+    margin-bottom: 0.5rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .login-input {
+    width: 100%;
+    padding: 0.9rem 1.2rem;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-size: 1.4rem;
+    letter-spacing: 6px;
+    text-align: center;
+    font-family: 'Bebas Neue', sans-serif;
+    outline: none;
+    transition: border-color 0.2s;
+    margin-bottom: 1.5rem;
+  }
+
+  .login-input:focus { border-color: var(--accent); }
+
+  .login-btn {
+    width: 100%;
+    padding: 1rem;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 2px;
+  }
+
+  .login-btn:hover { background: #ff8555; transform: translateY(-1px); }
+
+  .login-error {
+    margin-top: 1rem;
+    font-size: 0.85rem;
+    color: #ff4757;
+    min-height: 1.2em;
+  }
+
+  /* ── 메인 앱 ── */
+  #app { display: none; }
+
+  /* 헤더 */
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .header-logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.8rem;
+    color: var(--accent);
+    letter-spacing: 2px;
+    cursor: pointer;
+  }
+
+  .header-logo span { color: var(--text); }
+
+  .nav {
+    display: flex;
+    gap: 0.3rem;
+  }
+
+  .nav-btn {
+    padding: 0.5rem 1rem;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 0.85rem;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.2s;
+    font-weight: 500;
+  }
+
+  .nav-btn:hover, .nav-btn.active {
+    background: var(--card);
+    color: var(--text);
+  }
+
+  .nav-btn.active { color: var(--accent); }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+
+  /* 페이지 컨테이너 */
+  .page { display: none; padding: 2rem; max-width: 1100px; margin: 0 auto; }
+  .page.active { display: block; animation: fadeIn 0.3s ease; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* 공통 섹션 헤더 */
+  .section-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2rem;
+    letter-spacing: 2px;
+    margin-bottom: 0.3rem;
+  }
+
+  .section-title span { color: var(--accent); }
+
+  .section-desc {
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-bottom: 2rem;
+  }
+
+  /* ─── 홈 대시보드 ─── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.5rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--accent-color, var(--accent));
+  }
+
+  .stat-card:nth-child(2) { --accent-color: var(--accent2); }
+  .stat-card:nth-child(3) { --accent-color: var(--accent3); }
+  .stat-card:nth-child(4) { --accent-color: #a78bfa; }
+
+  .stat-label { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 1px; }
+  .stat-value { font-family: 'Bebas Neue', sans-serif; font-size: 2.8rem; color: var(--text); line-height: 1; }
+  .stat-icon { position: absolute; top: 1.2rem; right: 1.2rem; font-size: 1.8rem; opacity: 0.3; }
+
+  .home-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1.5rem;
+  }
+
+  /* 최근 공지 */
+  .notice-preview {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.5rem;
+  }
+
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.2rem;
+  }
+
+  .card-title {
+    font-weight: 700;
+    font-size: 0.95rem;
+  }
+
+  .card-link {
+    font-size: 0.75rem;
+    color: var(--accent);
+    cursor: pointer;
+    background: none;
+    border: none;
+    font-family: inherit;
+  }
+
+  .notice-item {
+    padding: 0.8rem 0;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    cursor: pointer;
+  }
+
+  .notice-item:last-child { border-bottom: none; }
+
+  .notice-badge {
+    font-size: 0.65rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    background: rgba(255,107,53,0.2);
+    color: var(--accent);
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .notice-badge.general { background: rgba(167,169,190,0.15); color: var(--muted); }
+
+  .notice-text { font-size: 0.88rem; }
+  .notice-date { font-size: 0.75rem; color: var(--muted); margin-top: 3px; }
+
+  /* 대여 현황 사이드 */
+  .rental-status {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.5rem;
+  }
+
+  .rental-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.7rem 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.85rem;
+  }
+
+  .rental-item:last-child { border-bottom: none; }
+
+  .rental-name { font-weight: 500; }
+  .rental-who { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+
+  .badge {
+    font-size: 0.65rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 20px;
+    font-weight: 700;
+  }
+
+  .badge.out { background: rgba(255,71,87,0.2); color: #ff4757; }
+  .badge.in { background: rgba(6,214,160,0.2); color: var(--accent3); }
+
+  /* ─── 보드게임 목록 ─── */
+  .game-controls {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+  }
+
+  .search-input {
+    flex: 1;
+    min-width: 200px;
+    padding: 0.7rem 1rem;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 0.88rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .search-input:focus { border-color: var(--accent); }
+  .search-input::placeholder { color: var(--muted); }
+
+  .filter-btn {
+    padding: 0.7rem 1.2rem;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--muted);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .filter-btn.active, .filter-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(255,107,53,0.08);
+  }
+
+  .games-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1rem;
+  }
+
+  .game-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.5rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .game-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-3px);
+    box-shadow: 0 10px 30px rgba(255,107,53,0.1);
+  }
+
+  .game-emoji { font-size: 2.5rem; margin-bottom: 0.8rem; display: block; }
+  .game-name { font-weight: 700; font-size: 0.95rem; margin-bottom: 0.5rem; }
+
+  .game-meta {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-top: 0.8rem;
+  }
+
+  .tag {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.06);
+    color: var(--muted);
+  }
+
+  .tag.players { background: rgba(255,210,63,0.12); color: var(--accent2); }
+  .tag.available { background: rgba(6,214,160,0.12); color: var(--accent3); }
+  .tag.unavailable { background: rgba(255,71,87,0.12); color: #ff4757; }
+
+  .game-owned {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    font-size: 0.65rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    background: rgba(167,129,247,0.15);
+    color: #a78bfa;
+  }
+
+  /* ─── 대여 서비스 ─── */
+  .rental-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+
+  .rental-form-card, .rental-list-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.8rem;
+  }
+
+  .form-group { margin-bottom: 1.2rem; }
+
+  .form-label {
+    display: block;
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .form-control {
+    width: 100%;
+    padding: 0.8rem 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 0.88rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .form-control:focus { border-color: var(--accent); }
+  .form-control::placeholder { color: var(--muted); }
+
+  select.form-control option { background: var(--card); }
+
+  .submit-btn {
+    width: 100%;
+    padding: 0.9rem;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 0.5rem;
+  }
+
+  .submit-btn:hover { background: #ff8555; transform: translateY(-1px); }
+
+  .rental-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  .rental-table th {
+    text-align: left;
+    padding: 0.7rem;
+    font-size: 0.72rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .rental-table td {
+    padding: 0.8rem 0.7rem;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    vertical-align: middle;
+  }
+
+  .rental-table tr:last-child td { border-bottom: none; }
+
+  /* ─── 공지사항 ─── */
+  .notice-list-full { display: flex; flex-direction: column; gap: 0.8rem; }
+
+  .notice-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.3rem 1.5rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .notice-card:hover { border-color: var(--accent); transform: translateX(4px); }
+
+  .notice-card-badge {
+    font-size: 0.7rem;
+    padding: 0.3rem 0.7rem;
+    border-radius: 6px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .notice-card-badge.important {
+    background: rgba(255,107,53,0.2);
+    color: var(--accent);
+  }
+  .notice-card-badge.event {
+    background: rgba(255,210,63,0.2);
+    color: var(--accent2);
+  }
+  .notice-card-badge.general {
+    background: rgba(167,169,190,0.1);
+    color: var(--muted);
+  }
+
+  .notice-card-content { flex: 1; }
+  .notice-card-title { font-weight: 600; font-size: 0.9rem; margin-bottom: 0.3rem; }
+  .notice-card-preview { font-size: 0.8rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 500px; }
+  .notice-card-meta { font-size: 0.75rem; color: var(--muted); flex-shrink: 0; }
+
+  /* ─── 멤버 ─── */
+  .members-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+  }
+
+  .member-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.5rem;
+    text-align: center;
+    transition: all 0.2s;
+  }
+
+  .member-card:hover { border-color: var(--accent3); transform: translateY(-2px); }
+
+  .member-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    margin: 0 auto 1rem;
+  }
+
+  .member-name { font-weight: 700; margin-bottom: 0.3rem; }
+  .member-games { font-size: 0.78rem; color: var(--muted); }
+  .member-role {
+    display: inline-block;
+    margin-top: 0.6rem;
+    font-size: 0.65rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 20px;
+    background: rgba(167,129,247,0.15);
+    color: #a78bfa;
+  }
+
+  /* ─── 토스트 ─── */
+  .toast {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    background: var(--surface);
+    border: 1px solid var(--accent3);
+    color: var(--text);
+    padding: 1rem 1.5rem;
+    border-radius: 12px;
+    font-size: 0.88rem;
+    z-index: 999;
+    transform: translateY(100px);
+    opacity: 0;
+    transition: all 0.3s;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+  }
+
+  .toast.show { transform: translateY(0); opacity: 1; }
+
+  /* 반응형 */
+  @media (max-width: 768px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .home-grid { grid-template-columns: 1fr; }
+    .rental-grid { grid-template-columns: 1fr; }
+    .page { padding: 1rem; }
+    .header { padding: 0 1rem; }
+    .nav-btn { font-size: 0.75rem; padding: 0.4rem 0.7rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 로그인 화면 -->
+<div id="login-screen">
+  <div class="login-bg"></div>
+  <span class="dice-float">🎲</span>
+  <span class="dice-float">🃏</span>
+  <span class="dice-float">♟️</span>
+  <span class="dice-float">🎯</span>
+  <span class="dice-float">🎴</span>
+
+  <div class="login-box">
+    <div class="login-logo">BOARD<span>CLUB</span></div>
+    <div class="login-subtitle">보드게임 동호회 · 회원 전용</div>
+    <div class="login-label">입장 코드 입력</div>
+    <input class="login-input" type="password" id="code-input" maxlength="4" placeholder="••••" autofocus>
+    <button class="login-btn" onclick="tryLogin()">🎲 입 장</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<!-- 메인 앱 -->
+<div id="app">
+  <header class="header">
+    <div class="header-logo" onclick="showPage('home')">BOARD<span>CLUB</span></div>
+    <nav class="nav">
+      <button class="nav-btn active" onclick="showPage('home')" data-page="home">🏠 홈</button>
+      <button class="nav-btn" onclick="showPage('games')" data-page="games">🎲 보드게임</button>
+      <button class="nav-btn" onclick="showPage('rental')" data-page="rental">📦 대여</button>
+      <button class="nav-btn" onclick="showPage('notice')" data-page="notice">📢 공지</button>
+      <button class="nav-btn" onclick="showPage('members')" data-page="members">👥 멤버</button>
+    </nav>
+    <div class="header-right">
+      <span id="current-date"></span>
+      <button onclick="logout()" style="background:transparent;border:1px solid var(--border);color:var(--muted);padding:0.3rem 0.7rem;border-radius:6px;cursor:pointer;font-size:0.75rem;">나가기</button>
+    </div>
+  </header>
+
+  <!-- 홈 -->
+  <div class="page active" id="page-home">
+    <div style="margin-bottom:2rem;">
+      <div style="font-size:0.85rem;color:var(--muted);">안녕하세요 👋</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:2.5rem;letter-spacing:2px;">보드게임 동호회 <span style="color:var(--accent);">대시보드</span></div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon">🎲</div>
+        <div class="stat-label">보유 보드게임</div>
+        <div class="stat-value">24</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">📦</div>
+        <div class="stat-label">대여 중</div>
+        <div class="stat-value">3</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">👥</div>
+        <div class="stat-label">회원 수</div>
+        <div class="stat-value">18</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">🗓️</div>
+        <div class="stat-label">다음 모임</div>
+        <div class="stat-value" style="font-size:1.4rem;padding-top:0.4rem;">3/22</div>
+      </div>
+    </div>
+
+    <div class="home-grid">
+      <div class="notice-preview">
+        <div class="card-header">
+          <div class="card-title">📢 최근 공지사항</div>
+          <button class="card-link" onclick="showPage('notice')">전체보기 →</button>
+        </div>
+        <div class="notice-item">
+          <span class="notice-badge">중요</span>
+          <div>
+            <div class="notice-text">3월 정기 모임 일정 안내 (3/22 토요일)</div>
+            <div class="notice-date">2025.03.10</div>
+          </div>
+        </div>
+        <div class="notice-item">
+          <span class="notice-badge">이벤트</span>
+          <div>
+            <div class="notice-text">신규 게임 추가! 테라포밍마스 입고 완료 🎉</div>
+            <div class="notice-date">2025.03.08</div>
+          </div>
+        </div>
+        <div class="notice-item">
+          <span class="notice-badge general">일반</span>
+          <div>
+            <div class="notice-text">대여 규정 업데이트 안내 (반납 기한 7일)</div>
+            <div class="notice-date">2025.03.05</div>
+          </div>
+        </div>
+        <div class="notice-item">
+          <span class="notice-badge general">일반</span>
+          <div>
+            <div class="notice-text">2월 모임 후기 및 사진 공유</div>
+            <div class="notice-date">2025.02.25</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="rental-status">
+        <div class="card-header">
+          <div class="card-title">📦 대여 현황</div>
+          <button class="card-link" onclick="showPage('rental')">신청하기 →</button>
+        </div>
+        <div class="rental-item">
+          <div>
+            <div class="rental-name">카탄</div>
+            <div class="rental-who">김민준 · ~3/15</div>
+          </div>
+          <span class="badge out">대여중</span>
+        </div>
+        <div class="rental-item">
+          <div>
+            <div class="rental-name">아줄</div>
+            <div class="rental-who">이서연 · ~3/17</div>
+          </div>
+          <span class="badge out">대여중</span>
+        </div>
+        <div class="rental-item">
+          <div>
+            <div class="rental-name">스플렌더</div>
+            <div class="rental-who">박지호 · ~3/19</div>
+          </div>
+          <span class="badge out">대여중</span>
+        </div>
+        <div class="rental-item">
+          <div>
+            <div class="rental-name">테라포밍마스</div>
+            <div class="rental-who">—</div>
+          </div>
+          <span class="badge in">반납완료</span>
+        </div>
+        <div class="rental-item">
+          <div>
+            <div class="rental-name">루미큐브</div>
+            <div class="rental-who">—</div>
+          </div>
+          <span class="badge in">대여가능</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 보드게임 목록 -->
+  <div class="page" id="page-games">
+    <div class="section-title">🎲 보드게임 <span>목록</span></div>
+    <div class="section-desc">현재 동호회 보유 게임 목록입니다.</div>
+
+    <div class="game-controls">
+      <input class="search-input" type="text" placeholder="🔍  게임 검색..." oninput="filterGames(this.value)">
+      <button class="filter-btn active" onclick="filterByPlayers('all', this)">전체</button>
+      <button class="filter-btn" onclick="filterByPlayers('2', this)">2인</button>
+      <button class="filter-btn" onclick="filterByPlayers('4', this)">4인 이상</button>
+      <button class="filter-btn" onclick="filterByPlayers('available', this)">대여 가능</button>
+    </div>
+
+    <div class="games-grid" id="games-grid">
+      <!-- 게임 카드는 JS로 생성 -->
+    </div>
+  </div>
+
+  <!-- 대여 서비스 -->
+  <div class="page" id="page-rental">
+    <div class="section-title">📦 보드게임 <span>대여</span></div>
+    <div class="section-desc">게임을 빌리고 반납 현황을 확인하세요.</div>
+
+    <div class="rental-grid">
+      <div class="rental-form-card">
+        <div class="card-title" style="margin-bottom:1.5rem;">✏️ 대여 신청</div>
+
+        <div class="form-group">
+          <label class="form-label">이름</label>
+          <input class="form-control" type="text" placeholder="이름을 입력하세요" id="rent-name">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">게임 선택</label>
+          <select class="form-control" id="rent-game">
+            <option value="">— 게임을 선택하세요 —</option>
+            <option>카탄</option>
+            <option>아줄</option>
+            <option>스플렌더</option>
+            <option>테라포밍마스</option>
+            <option>루미큐브</option>
+            <option>코드네임</option>
+            <option>판데믹</option>
+            <option>딕싯</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">대여 기간</label>
+          <select class="form-control" id="rent-period">
+            <option>3일</option>
+            <option>5일</option>
+            <option selected>7일</option>
+            <option>10일</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">비고 (선택)</label>
+          <input class="form-control" type="text" placeholder="특이사항이 있으면 입력" id="rent-note">
+        </div>
+
+        <button class="submit-btn" onclick="submitRental()">📦 대여 신청하기</button>
+      </div>
+
+      <div class="rental-list-card">
+        <div class="card-title" style="margin-bottom:1.5rem;">📋 현재 대여 현황</div>
+        <table class="rental-table">
+          <thead>
+            <tr>
+              <th>게임명</th>
+              <th>대여자</th>
+              <th>반납일</th>
+              <th>상태</th>
+            </tr>
+          </thead>
+          <tbody id="rental-tbody">
+            <tr>
+              <td>카탄</td>
+              <td>김민준</td>
+              <td>3/15</td>
+              <td><span class="badge out">대여중</span></td>
+            </tr>
+            <tr>
+              <td>아줄</td>
+              <td>이서연</td>
+              <td>3/17</td>
+              <td><span class="badge out">대여중</span></td>
+            </tr>
+            <tr>
+              <td>스플렌더</td>
+              <td>박지호</td>
+              <td>3/19</td>
+              <td><span class="badge out">대여중</span></td>
+            </tr>
+            <tr>
+              <td>테라포밍마스</td>
+              <td>—</td>
+              <td>—</td>
+              <td><span class="badge in">가능</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 공지사항 -->
+  <div class="page" id="page-notice">
+    <div class="section-title">📢 공지 <span>사항</span></div>
+    <div class="section-desc">동호회 관련 공지를 확인하세요.</div>
+
+    <div class="notice-list-full">
+      <div class="notice-card">
+        <span class="notice-card-badge important">📌 중요</span>
+        <div class="notice-card-content">
+          <div class="notice-card-title">3월 정기 모임 일정 안내</div>
+          <div class="notice-card-preview">3월 22일 토요일 오후 2시, 문화센터 3층 회의실에서 진행됩니다. 참석 여부를 3/18까지 알려주세요.</div>
+        </div>
+        <div class="notice-card-meta">2025.03.10</div>
+      </div>
+
+      <div class="notice-card">
+        <span class="notice-card-badge event">🎉 이벤트</span>
+        <div class="notice-card-content">
+          <div class="notice-card-title">신규 게임 추가 — 테라포밍마스 입고!</div>
+          <div class="notice-card-preview">많은 분들이 원하시던 테라포밍마스가 입고되었습니다. 대여 신청 페이지에서 신청하세요.</div>
+        </div>
+        <div class="notice-card-meta">2025.03.08</div>
+      </div>
+
+      <div class="notice-card">
+        <span class="notice-card-badge general">일반</span>
+        <div class="notice-card-content">
+          <div class="notice-card-title">대여 규정 업데이트 안내</div>
+          <div class="notice-card-preview">반납 기한이 기존 14일에서 7일로 변경되었습니다. 3월 1일부터 적용됩니다.</div>
+        </div>
+        <div class="notice-card-meta">2025.03.05</div>
+      </div>
+
+      <div class="notice-card">
+        <span class="notice-card-badge general">일반</span>
+        <div class="notice-card-content">
+          <div class="notice-card-title">2월 정기 모임 후기 및 사진 공유</div>
+          <div class="notice-card-preview">2월 모임에서 즐겁게 보내주셔서 감사합니다. 단체 사진은 카카오톡 단체방을 확인해주세요!</div>
+        </div>
+        <div class="notice-card-meta">2025.02.25</div>
+      </div>
+
+      <div class="notice-card">
+        <span class="notice-card-badge event">🎉 이벤트</span>
+        <div class="notice-card-content">
+          <div class="notice-card-title">신입 회원 환영 이벤트 안내</div>
+          <div class="notice-card-preview">신규 가입 회원 대상으로 첫 달 대여 무제한 이벤트를 진행합니다.</div>
+        </div>
+        <div class="notice-card-meta">2025.02.18</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 멤버 -->
+  <div class="page" id="page-members">
+    <div class="section-title">👥 동호회 <span>멤버</span></div>
+    <div class="section-desc">함께하는 보드게임 동호회 멤버들입니다.</div>
+
+    <div class="members-grid">
+      <div class="member-card">
+        <div class="member-avatar">🎲</div>
+        <div class="member-name">김민준</div>
+        <div class="member-games">즐겨하는 게임: 카탄, 스플렌더</div>
+        <span class="member-role">⭐ 운영진</span>
+      </div>
+      <div class="member-card">
+        <div class="member-avatar" style="background:linear-gradient(135deg,var(--accent3),#a78bfa)">♟️</div>
+        <div class="member-name">이서연</div>
+        <div class="member-games">즐겨하는 게임: 아줄, 딕싯</div>
+        <span class="member-role">⭐ 운영진</span>
+      </div>
+      <div class="member-card">
+        <div class="member-avatar" style="background:linear-gradient(135deg,var(--accent2),#ff6b35)">🃏</div>
+        <div class="member-name">박지호</div>
+        <div class="member-games">즐겨하는 게임: 판데믹, 카탄</div>
+        <span class="member-role">회원</span>
+      </div>
+      <div class="member-card">
+        <div class="member-avatar" style="background:linear-gradient(135deg,#a78bfa,#06d6a0)">🎯</div>
+        <div class="member-name">최유진</div>
+        <div class="member-games">즐겨하는 게임: 루미큐브, 코드네임</div>
+        <span class="member-role">회원</span>
+      </div>
+      <div class="member-card">
+        <div class="member-avatar" style="background:linear-gradient(135deg,#06d6a0,#ffd23f)">🎴</div>
+        <div class="member-name">정다은</div>
+        <div class="member-games">즐겨하는 게임: 딕싯, 아줄</div>
+        <span class="member-role">신입</span>
+      </div>
+      <div class="member-card">
+        <div class="member-avatar" style="background:linear-gradient(135deg,#ff4757,#ffd23f)">🏆</div>
+        <div class="member-name">한승우</div>
+        <div class="member-games">즐겨하는 게임: 테라포밍마스</div>
+        <span class="member-role">회원</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">✅ 대여 신청이 완료되었습니다!</div>
+
+<script>
+// ── 로그인 ──
+const CODE = 'bdbd';
+
+document.getElementById('code-input').addEventListener('keypress', e => {
+  if (e.key === 'Enter') tryLogin();
+});
+
+function tryLogin() {
+  const val = document.getElementById('code-input').value;
+  if (val === CODE) {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    setDate();
+  } else {
+    const err = document.getElementById('login-error');
+    err.textContent = '❌ 입장 코드가 올바르지 않습니다.';
+    document.getElementById('code-input').value = '';
+    setTimeout(() => err.textContent = '', 3000);
+  }
+}
+
+function logout() {
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('code-input').value = '';
+}
+
+// ── 날짜 ──
+function setDate() {
+  const d = new Date();
+  document.getElementById('current-date').textContent =
+    `${d.getMonth()+1}/${d.getDate()} (${['일','월','화','수','목','금','토'][d.getDay()]})`;
+}
+
+// ── 페이지 전환 ──
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.querySelector(`[data-page="${name}"]`).classList.add('active');
+  if (name === 'games') renderGames();
+}
+
+// ── 보드게임 데이터 ──
+const games = [
+  { name: '카탄', emoji: '🏝️', players: '3-4', time: '60-120분', tags: ['전략'], available: false },
+  { name: '아줄', emoji: '🔷', players: '2-4', time: '30-45분', tags: ['타일배치'], available: false },
+  { name: '스플렌더', emoji: '💎', players: '2-4', time: '30분', tags: ['엔진빌딩'], available: false },
+  { name: '테라포밍마스', emoji: '🌍', players: '1-5', time: '120분', tags: ['전략'], available: true },
+  { name: '루미큐브', emoji: '🔢', players: '2-4', time: '45분', tags: ['숫자타일'], available: true },
+  { name: '코드네임', emoji: '🕵️', players: '4-8', time: '15분', tags: ['파티'], available: true },
+  { name: '판데믹', emoji: '🦠', players: '2-4', time: '45분', tags: ['협력'], available: true },
+  { name: '딕싯', emoji: '🎨', players: '3-6', time: '30분', tags: ['파티'], available: true },
+  { name: '러브레터', emoji: '💌', players: '2-4', time: '15분', tags: ['카드'], available: true },
+  { name: '웰컴투', emoji: '🏠', players: '1-100', time: '25분', tags: ['퍼즐'], available: true },
+  { name: '7원더스', emoji: '🏛️', players: '2-7', time: '30-45분', tags: ['전략'], available: true },
+  { name: '티켓투라이드', emoji: '🚂', players: '2-5', time: '45-75분', tags: ['전략'], available: true },
+];
+
+let currentGames = [...games];
+
+function renderGames(list = currentGames) {
+  const grid = document.getElementById('games-grid');
+  grid.innerHTML = list.map(g => `
+    <div class="game-card">
+      <span class="game-owned">${g.available ? '대여가능' : '대여중'}</span>
+      <span class="game-emoji">${g.emoji}</span>
+      <div class="game-name">${g.name}</div>
+      <div style="font-size:0.78rem;color:var(--muted);">⏱ ${g.time}</div>
+      <div class="game-meta">
+        <span class="tag players">👥 ${g.players}명</span>
+        ${g.tags.map(t => `<span class="tag">${t}</span>`).join('')}
+        <span class="tag ${g.available ? 'available' : 'unavailable'}">${g.available ? '✅ 가능' : '❌ 대여중'}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function filterGames(q) {
+  const filtered = games.filter(g =>
+    g.name.includes(q) || g.tags.some(t => t.includes(q))
+  );
+  renderGames(filtered);
+}
+
+function filterByPlayers(mode, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (mode === 'all') renderGames(games);
+  else if (mode === 'available') renderGames(games.filter(g => g.available));
+  else renderGames(games.filter(g => g.players.includes(mode)));
+}
+
+// ── 대여 신청 ──
+function submitRental() {
+  const name = document.getElementById('rent-name').value.trim();
+  const game = document.getElementById('rent-game').value;
+  const period = document.getElementById('rent-period').value;
+
+  if (!name || !game) {
+    alert('이름과 게임을 선택해주세요.');
+    return;
+  }
+
+  const today = new Date();
+  const days = parseInt(period);
+  today.setDate(today.getDate() + days);
+  const due = `${today.getMonth()+1}/${today.getDate()}`;
+
+  const tbody = document.getElementById('rental-tbody');
+  const row = document.createElement('tr');
+  row.innerHTML = `
+    <td>${game}</td>
+    <td>${name}</td>
+    <td>${due}</td>
+    <td><span class="badge out">대여중</span></td>
+  `;
+  tbody.insertBefore(row, tbody.firstChild);
+
+  document.getElementById('rent-name').value = '';
+  document.getElementById('rent-game').value = '';
+  document.getElementById('rent-note').value = '';
+
+  showToast(`✅ "${game}" 대여 신청 완료! (반납: ${due})`);
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+</script>
+</body>
+</html>
