@@ -1,111 +1,1216 @@
-# 🎲 보드게임 동호회 웹사이트
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎲 보드게임 동호회</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+/* ─── CSS 변수 ─── */
+:root {
+  --bg: #0f0e17;
+  --surface: #1a1825;
+  --card: #221f35;
+  --card2: #2a2740;
+  --accent: #ff6b35;
+  --accent2: #ffd23f;
+  --accent3: #06d6a0;
+  --purple: #a78bfa;
+  --text: #fffffe;
+  --muted: #a7a9be;
+  --border: #2e2b45;
+  --danger: #ff4757;
+  --radius: 14px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Noto Sans KR',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+button { cursor:pointer; font-family:'Noto Sans KR',sans-serif; }
+a { color:inherit; text-decoration:none; }
 
-GitHub + Vercel + Supabase 기반 보드게임 동호회 전용 웹사이트입니다.
+/* ─── 로그인 ─── */
+#login-screen {
+  min-height:100vh; display:flex; align-items:center; justify-content:center;
+  background:var(--bg); position:relative; overflow:hidden;
+}
+.login-bg {
+  position:absolute; inset:0;
+  background:
+    radial-gradient(ellipse 60% 50% at 20% 30%,rgba(255,107,53,.13) 0%,transparent 60%),
+    radial-gradient(ellipse 50% 40% at 80% 70%,rgba(6,214,160,.08) 0%,transparent 60%);
+}
+.dice-float { position:absolute; font-size:3rem; opacity:.05; animation:floatDice 8s ease-in-out infinite; user-select:none; }
+.dice-float:nth-child(1){top:10%;left:8%;animation-delay:0s;font-size:4rem}
+.dice-float:nth-child(2){top:60%;left:5%;animation-delay:2s}
+.dice-float:nth-child(3){top:20%;right:10%;animation-delay:1s;font-size:5rem}
+.dice-float:nth-child(4){bottom:15%;right:8%;animation-delay:3s}
+.dice-float:nth-child(5){bottom:30%;left:20%;animation-delay:4s;font-size:2.5rem}
+@keyframes floatDice {
+  0%,100%{transform:translateY(0) rotate(0deg)}
+  33%{transform:translateY(-20px) rotate(10deg)}
+  66%{transform:translateY(10px) rotate(-5deg)}
+}
+.login-box {
+  position:relative; z-index:1; text-align:center;
+  padding:3rem 3.5rem; background:var(--surface);
+  border:1px solid var(--border); border-radius:20px; width:380px;
+  box-shadow:0 30px 80px rgba(0,0,0,.5); animation:fadeUp .6s ease;
+}
+@keyframes fadeUp { from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:translateY(0)} }
+.login-logo { font-family:'Bebas Neue',sans-serif; font-size:3.5rem; letter-spacing:3px; color:var(--accent); line-height:1; margin-bottom:.3rem; }
+.login-logo span { color:var(--text); }
+.login-subtitle { font-size:.85rem; color:var(--muted); margin-bottom:2.5rem; letter-spacing:2px; text-transform:uppercase; }
+.login-label { font-size:.75rem; color:var(--muted); text-align:left; margin-bottom:.5rem; letter-spacing:1px; text-transform:uppercase; }
+.login-input {
+  width:100%; padding:.9rem 1.2rem;
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  color:var(--text); font-size:1.4rem; letter-spacing:6px; text-align:center;
+  font-family:'Bebas Neue',sans-serif; outline:none; transition:border-color .2s; margin-bottom:1.5rem;
+}
+.login-input:focus { border-color:var(--accent); }
+.login-btn {
+  width:100%; padding:1rem; background:var(--accent); color:#fff;
+  border:none; border-radius:10px; font-size:1rem; font-weight:700;
+  transition:all .2s; letter-spacing:2px;
+}
+.login-btn:hover { background:#ff8555; transform:translateY(-1px); }
+.login-error { margin-top:1rem; font-size:.85rem; color:var(--danger); min-height:1.2em; }
 
----
+/* ─── 앱 레이아웃 ─── */
+#app { display:none; }
+.header {
+  background:var(--surface); border-bottom:1px solid var(--border);
+  padding:0 2rem; display:flex; align-items:center; justify-content:space-between;
+  height:64px; position:sticky; top:0; z-index:100;
+}
+.header-logo { font-family:'Bebas Neue',sans-serif; font-size:1.8rem; color:var(--accent); letter-spacing:2px; cursor:pointer; }
+.header-logo span { color:var(--text); }
+.nav { display:flex; gap:.3rem; }
+.nav-btn {
+  padding:.5rem 1rem; background:transparent; border:none;
+  color:var(--muted); font-size:.85rem; border-radius:8px;
+  transition:all .2s; font-weight:500;
+}
+.nav-btn:hover, .nav-btn.active { background:var(--card); color:var(--text); }
+.nav-btn.active { color:var(--accent); }
+.header-right { display:flex; align-items:center; gap:.8rem; font-size:.8rem; color:var(--muted); }
+.admin-badge {
+  font-size:.7rem; padding:.25rem .6rem; background:rgba(255,107,53,.15);
+  color:var(--accent); border-radius:6px; font-weight:700; border:1px solid rgba(255,107,53,.3);
+}
 
-## 📁 프로젝트 구조
+/* ─── 페이지 ─── */
+.page { display:none; padding:2rem; max-width:1200px; margin:0 auto; }
+.page.active { display:block; animation:fadeIn .3s ease; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
 
-```
-boardgame-club/
-├── src/
-│   └── index.html          # 메인 앱 (단일 파일)
-├── supabase/
-│   └── schema.sql          # DB 스키마 + 샘플 데이터
-└── README.md
-```
+.section-title { font-family:'Bebas Neue',sans-serif; font-size:2rem; letter-spacing:2px; margin-bottom:.3rem; }
+.section-title span { color:var(--accent); }
+.section-desc { color:var(--muted); font-size:.85rem; margin-bottom:2rem; }
 
----
+/* ─── 홈 대시보드 ─── */
+.stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:2rem; }
+.stat-card {
+  background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+  padding:1.5rem; position:relative; overflow:hidden;
+}
+.stat-card::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:3px;
+  background:var(--c, var(--accent));
+}
+.stat-label { font-size:.72rem; color:var(--muted); margin-bottom:.5rem; text-transform:uppercase; letter-spacing:1px; }
+.stat-value { font-family:'Bebas Neue',sans-serif; font-size:2.8rem; line-height:1; }
+.stat-icon { position:absolute; top:1.2rem; right:1.2rem; font-size:1.8rem; opacity:.25; }
+.home-grid { display:grid; grid-template-columns:2fr 1fr; gap:1.5rem; }
+.panel {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:var(--radius); padding:1.5rem;
+}
+.panel-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:1.2rem; }
+.panel-title { font-weight:700; font-size:.95rem; }
+.panel-link { font-size:.75rem; color:var(--accent); background:none; border:none; }
+.panel-link:hover { text-decoration:underline; }
 
-## 🚀 셋업 순서
+/* 공지 미리보기 */
+.notice-preview-item {
+  padding:.75rem 0; border-bottom:1px solid var(--border);
+  display:flex; gap:.8rem; align-items:flex-start;
+}
+.notice-preview-item:last-child { border-bottom:none; }
+.nbadge {
+  font-size:.62rem; padding:.2rem .5rem; border-radius:4px;
+  font-weight:700; flex-shrink:0; margin-top:2px;
+}
+.nbadge.important { background:rgba(255,107,53,.2); color:var(--accent); }
+.nbadge.event { background:rgba(255,210,63,.2); color:var(--accent2); }
+.nbadge.general { background:rgba(167,169,190,.12); color:var(--muted); }
+.notice-text { font-size:.87rem; }
+.notice-date { font-size:.73rem; color:var(--muted); margin-top:3px; }
 
-### 1. Supabase 프로젝트 생성
+/* 대여 현황 */
+.rental-row { display:flex; justify-content:space-between; align-items:center; padding:.65rem 0; border-bottom:1px solid var(--border); font-size:.85rem; }
+.rental-row:last-child { border-bottom:none; }
+.rental-name { font-weight:500; }
+.rental-who { font-size:.73rem; color:var(--muted); margin-top:2px; }
+.badge { font-size:.63rem; padding:.2rem .6rem; border-radius:20px; font-weight:700; }
+.badge.out { background:rgba(255,71,87,.2); color:var(--danger); }
+.badge.in { background:rgba(6,214,160,.2); color:var(--accent3); }
 
-1. https://supabase.com 접속 → 새 프로젝트 생성
-2. 프로젝트 생성 후 **Settings → API** 에서 아래 두 값 복사:
-   - `Project URL` → `SUPABASE_URL`
-   - `anon / public` key → `SUPABASE_KEY`
+/* ─── 보드게임 목록 ─── */
+.game-filters {
+  display:flex; flex-wrap:wrap; gap:.8rem; margin-bottom:1.5rem;
+  padding:1.2rem; background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+}
+.filter-group { display:flex; flex-direction:column; gap:.5rem; }
+.filter-label { font-size:.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:1px; }
+.filter-row { display:flex; gap:.4rem; flex-wrap:wrap; }
+.search-wrap { flex:1; min-width:220px; display:flex; flex-direction:column; gap:.5rem; }
+.search-input {
+  width:100%; padding:.65rem 1rem; background:var(--surface);
+  border:1px solid var(--border); border-radius:9px; color:var(--text);
+  font-family:'Noto Sans KR',sans-serif; font-size:.87rem; outline:none; transition:border-color .2s;
+}
+.search-input:focus { border-color:var(--accent); }
+.search-input::placeholder { color:var(--muted); }
+.fbtn {
+  padding:.45rem .9rem; background:var(--surface); border:1px solid var(--border);
+  border-radius:8px; color:var(--muted); font-size:.78rem; transition:all .15s;
+}
+.fbtn:hover, .fbtn.on { border-color:var(--accent); color:var(--accent); background:rgba(255,107,53,.08); }
+.sort-select {
+  padding:.45rem .9rem; background:var(--surface); border:1px solid var(--border);
+  border-radius:8px; color:var(--muted); font-size:.78rem; outline:none;
+  font-family:'Noto Sans KR',sans-serif; cursor:pointer;
+}
+.games-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:1.2rem; }
 
-### 2. 데이터베이스 스키마 적용
+/* 게임 카드 */
+.game-card {
+  background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+  overflow:hidden; transition:all .2s; cursor:pointer; display:flex; flex-direction:column;
+}
+.game-card:hover { border-color:var(--accent); transform:translateY(-4px); box-shadow:0 12px 35px rgba(255,107,53,.12); }
+.game-card-img {
+  width:100%; height:160px; object-fit:cover; background:var(--card2);
+  display:flex; align-items:center; justify-content:center; font-size:3.5rem;
+}
+.game-card-img img { width:100%; height:100%; object-fit:cover; }
+.game-card-body { padding:1.2rem; flex:1; display:flex; flex-direction:column; }
+.game-card-genre { font-size:.68rem; color:var(--accent); font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:.4rem; }
+.game-card-title { font-weight:700; font-size:1.05rem; margin-bottom:.6rem; }
+.game-card-meta { display:flex; flex-wrap:wrap; gap:.4rem; margin-bottom:.8rem; }
+.tag { font-size:.68rem; padding:.2rem .55rem; border-radius:20px; background:rgba(255,255,255,.06); color:var(--muted); }
+.tag.players { background:rgba(255,210,63,.12); color:var(--accent2); }
+.tag.time { background:rgba(6,214,160,.1); color:var(--accent3); }
+.tag.diff { background:rgba(167,129,247,.1); color:var(--purple); }
+.tag.avail { background:rgba(6,214,160,.15); color:var(--accent3); }
+.tag.unavail { background:rgba(255,71,87,.12); color:var(--danger); }
+.game-card-footer { display:flex; justify-content:space-between; align-items:center; margin-top:auto; padding-top:.8rem; border-top:1px solid var(--border); }
+.rec-count { font-size:.8rem; color:var(--muted); }
+.rec-count span { color:var(--accent2); font-weight:700; }
 
-1. Supabase 대시보드 → **SQL Editor** 클릭
-2. `supabase/schema.sql` 파일 내용 전체 복사 후 붙여넣기
-3. **Run** 클릭 → 테이블, 뷰, 샘플 데이터 자동 생성
+.diff-stars { color:var(--purple); font-size:.75rem; }
 
-### 3. index.html 설정 수정
+/* ─── 게임 모달 ─── */
+.modal-overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,.7);
+  display:none; align-items:center; justify-content:center; z-index:200;
+  backdrop-filter:blur(4px); padding:1rem;
+}
+.modal-overlay.open { display:flex; }
+.modal {
+  background:var(--surface); border:1px solid var(--border); border-radius:20px;
+  width:100%; max-width:760px; max-height:90vh; overflow-y:auto;
+  animation:fadeUp .3s ease;
+}
+.modal-hero { position:relative; height:220px; overflow:hidden; border-radius:20px 20px 0 0; background:var(--card2); }
+.modal-hero img { width:100%; height:100%; object-fit:cover; }
+.modal-hero-placeholder { width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-size:5rem; }
+.modal-close {
+  position:absolute; top:1rem; right:1rem;
+  background:rgba(0,0,0,.6); border:none; color:#fff; width:36px; height:36px;
+  border-radius:50%; font-size:1.1rem; display:flex; align-items:center; justify-content:center;
+}
+.modal-body { padding:1.8rem; }
+.modal-genre { font-size:.72rem; color:var(--accent); font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:.5rem; }
+.modal-title { font-family:'Bebas Neue',sans-serif; font-size:2.2rem; letter-spacing:1px; margin-bottom:1rem; }
+.modal-tags { display:flex; flex-wrap:wrap; gap:.5rem; margin-bottom:1.2rem; }
+.modal-desc { font-size:.88rem; color:var(--muted); line-height:1.7; margin-bottom:1.5rem; }
+.modal-yt { margin-bottom:1.5rem; }
+.yt-btn {
+  display:inline-flex; align-items:center; gap:.5rem;
+  padding:.6rem 1.2rem; background:#ff0000; color:#fff;
+  border-radius:8px; font-size:.85rem; font-weight:700; border:none; transition:opacity .2s;
+}
+.yt-btn:hover { opacity:.85; }
 
-`src/index.html` 파일에서 아래 부분을 수정합니다:
+/* 한줄평 */
+.reviews-section { border-top:1px solid var(--border); padding-top:1.5rem; }
+.reviews-title { font-weight:700; margin-bottom:1rem; }
+.review-form { display:flex; gap:.7rem; margin-bottom:1rem; }
+.review-input {
+  flex:1; padding:.65rem .9rem; background:var(--card); border:1px solid var(--border);
+  border-radius:9px; color:var(--text); font-family:'Noto Sans KR',sans-serif; font-size:.85rem; outline:none;
+}
+.review-input:focus { border-color:var(--accent3); }
+.review-input::placeholder { color:var(--muted); }
+.review-submit {
+  padding:.65rem 1rem; background:var(--accent3); color:#000;
+  border:none; border-radius:9px; font-size:.82rem; font-weight:700;
+}
+.review-item { padding:.7rem 0; border-bottom:1px solid var(--border); }
+.review-item:last-child { border-bottom:none; }
+.review-nick { font-size:.78rem; font-weight:700; color:var(--accent3); margin-bottom:.25rem; }
+.review-content { font-size:.85rem; }
+.review-date { font-size:.7rem; color:var(--muted); margin-top:.2rem; }
 
-```javascript
+/* 추천 버튼 */
+.rec-btn {
+  display:flex; align-items:center; gap:.5rem;
+  padding:.6rem 1.2rem; border-radius:9px; border:1px solid var(--border);
+  background:var(--card); font-size:.85rem; font-weight:700; transition:all .2s;
+  color:var(--muted);
+}
+.rec-btn.liked { border-color:var(--accent2); color:var(--accent2); background:rgba(255,210,63,.1); }
+.rec-btn:hover { border-color:var(--accent2); color:var(--accent2); }
+.modal-actions { display:flex; gap:.8rem; align-items:center; margin-bottom:1.5rem; }
+
+/* ─── 대여 ─── */
+.rental-grid { display:grid; grid-template-columns:1fr 1.4fr; gap:1.5rem; }
+.rental-form-card, .rental-list-card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:1.8rem; }
+.form-group { margin-bottom:1.1rem; }
+.form-label { display:block; font-size:.75rem; color:var(--muted); margin-bottom:.45rem; text-transform:uppercase; letter-spacing:1px; }
+.form-control {
+  width:100%; padding:.75rem 1rem; background:var(--surface); border:1px solid var(--border);
+  border-radius:9px; color:var(--text); font-family:'Noto Sans KR',sans-serif; font-size:.87rem; outline:none; transition:border-color .2s;
+}
+.form-control:focus { border-color:var(--accent); }
+.form-control::placeholder { color:var(--muted); }
+select.form-control option { background:var(--card); }
+.submit-btn {
+  width:100%; padding:.9rem; background:var(--accent); color:#fff; border:none;
+  border-radius:9px; font-size:.9rem; font-weight:700; transition:all .2s; margin-top:.4rem;
+}
+.submit-btn:hover { background:#ff8555; transform:translateY(-1px); }
+
+.rental-table { width:100%; border-collapse:collapse; font-size:.84rem; }
+.rental-table th {
+  text-align:left; padding:.65rem; font-size:.7rem; color:var(--muted);
+  text-transform:uppercase; letter-spacing:1px; border-bottom:1px solid var(--border);
+}
+.rental-table td { padding:.75rem .65rem; border-bottom:1px solid rgba(255,255,255,.04); vertical-align:middle; }
+.rental-table tr:last-child td { border-bottom:none; }
+.return-btn {
+  padding:.25rem .7rem; background:rgba(6,214,160,.1); color:var(--accent3);
+  border:1px solid rgba(6,214,160,.3); border-radius:6px; font-size:.7rem;
+}
+.return-btn:hover { background:rgba(6,214,160,.2); }
+
+/* ─── 공지 ─── */
+.notice-list { display:flex; flex-direction:column; gap:.8rem; }
+.notice-card {
+  background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+  padding:1.3rem 1.5rem; display:flex; gap:1rem; align-items:center;
+  cursor:pointer; transition:all .2s;
+}
+.notice-card:hover { border-color:var(--accent); transform:translateX(4px); }
+.notice-card-badge { font-size:.7rem; padding:.3rem .7rem; border-radius:6px; font-weight:700; flex-shrink:0; }
+.notice-card-badge.important { background:rgba(255,107,53,.2); color:var(--accent); }
+.notice-card-badge.event { background:rgba(255,210,63,.2); color:var(--accent2); }
+.notice-card-badge.general { background:rgba(167,169,190,.1); color:var(--muted); }
+.notice-card-content { flex:1; }
+.notice-card-title { font-weight:600; font-size:.9rem; margin-bottom:.3rem; }
+.notice-card-preview { font-size:.8rem; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:500px; }
+.notice-card-date { font-size:.73rem; color:var(--muted); flex-shrink:0; }
+
+/* ─── 관리자 ─── */
+.admin-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; }
+.admin-card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:1.8rem; }
+.admin-card-title { font-weight:700; font-size:1rem; margin-bottom:1.5rem; display:flex; align-items:center; gap:.5rem; }
+
+.img-preview {
+  width:100%; height:140px; background:var(--surface); border:2px dashed var(--border);
+  border-radius:10px; display:flex; align-items:center; justify-content:center;
+  font-size:.85rem; color:var(--muted); margin-bottom:.8rem; overflow:hidden; cursor:pointer;
+}
+.img-preview img { width:100%; height:100%; object-fit:cover; }
+.stars-input { display:flex; gap:.3rem; }
+.star-btn { background:none; border:none; font-size:1.3rem; color:var(--border); transition:color .1s; }
+.star-btn.on { color:var(--accent2); }
+
+.notice-admin-list { display:flex; flex-direction:column; gap:.6rem; }
+.notice-admin-item {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:.7rem 1rem; background:var(--surface); border-radius:9px;
+}
+.delete-btn {
+  background:rgba(255,71,87,.1); color:var(--danger);
+  border:1px solid rgba(255,71,87,.2); border-radius:6px;
+  padding:.25rem .6rem; font-size:.72rem;
+}
+.delete-btn:hover { background:rgba(255,71,87,.2); }
+
+/* ─── 로딩 / 빈 상태 ─── */
+.loading { text-align:center; padding:3rem; color:var(--muted); font-size:.9rem; }
+.spinner { display:inline-block; width:32px; height:32px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .8s linear infinite; margin-bottom:.8rem; }
+@keyframes spin { to{transform:rotate(360deg)} }
+.empty-state { text-align:center; padding:3rem; color:var(--muted); }
+
+/* ─── 토스트 ─── */
+.toast {
+  position:fixed; bottom:2rem; right:2rem; background:var(--surface);
+  border:1px solid var(--accent3); color:var(--text); padding:.9rem 1.4rem;
+  border-radius:12px; font-size:.87rem; z-index:999;
+  transform:translateY(100px); opacity:0; transition:all .3s;
+  box-shadow:0 10px 30px rgba(0,0,0,.4);
+}
+.toast.show { transform:translateY(0); opacity:1; }
+
+/* ─── 반응형 ─── */
+@media(max-width:768px){
+  .stats-grid { grid-template-columns:repeat(2,1fr); }
+  .home-grid,.rental-grid,.admin-grid { grid-template-columns:1fr; }
+  .page { padding:1rem; }
+  .header { padding:0 1rem; }
+  .nav-btn { font-size:.75rem; padding:.4rem .7rem; }
+  .games-grid { grid-template-columns:1fr 1fr; }
+}
+@media(max-width:500px){
+  .games-grid { grid-template-columns:1fr; }
+  .login-box { width:90%; padding:2rem 1.5rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- ─── 로그인 ─── -->
+<div id="login-screen">
+  <div class="login-bg"></div>
+  <span class="dice-float">🎲</span>
+  <span class="dice-float">🃏</span>
+  <span class="dice-float">♟️</span>
+  <span class="dice-float">🎯</span>
+  <span class="dice-float">🎴</span>
+  <div class="login-box">
+    <div class="login-logo">BOARD<span>CLUB</span></div>
+    <div class="login-subtitle">보드게임 동호회 · 회원 전용</div>
+    <div class="login-label">입장 코드 입력</div>
+    <input class="login-input" type="password" id="code-input" maxlength="20" placeholder="••••" autofocus>
+    <button class="login-btn" onclick="tryLogin()">🎲 입 장</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<!-- ─── 메인 앱 ─── -->
+<div id="app">
+  <header class="header">
+    <div class="header-logo" onclick="showPage('home')">BOARD<span>CLUB</span></div>
+    <nav class="nav">
+      <button class="nav-btn active" onclick="showPage('home')" data-page="home">🏠 홈</button>
+      <button class="nav-btn" onclick="showPage('games')" data-page="games">🎲 게임목록</button>
+      <button class="nav-btn" onclick="showPage('rental')" data-page="rental">📦 대여</button>
+      <button class="nav-btn" onclick="showPage('notice')" data-page="notice">📢 공지</button>
+      <button class="nav-btn" onclick="showPage('admin')" data-page="admin" id="admin-nav" style="display:none">⚙️ 관리</button>
+    </nav>
+    <div class="header-right">
+      <span id="admin-badge" class="admin-badge" style="display:none">관리자</span>
+      <span id="current-date"></span>
+      <button onclick="logout()" style="background:transparent;border:1px solid var(--border);color:var(--muted);padding:.3rem .7rem;border-radius:6px;font-size:.75rem;">나가기</button>
+    </div>
+  </header>
+
+  <!-- 홈 -->
+  <div class="page active" id="page-home">
+    <div style="margin-bottom:1.8rem">
+      <div style="font-size:.85rem;color:var(--muted)">안녕하세요 👋</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:2.5rem;letter-spacing:2px">보드게임 동호회 <span style="color:var(--accent)">대시보드</span></div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card" style="--c:var(--accent)">
+        <div class="stat-icon">🎲</div>
+        <div class="stat-label">보유 게임</div>
+        <div class="stat-value" id="stat-total">—</div>
+      </div>
+      <div class="stat-card" style="--c:var(--danger)">
+        <div class="stat-icon">📦</div>
+        <div class="stat-label">대여 중</div>
+        <div class="stat-value" id="stat-rented">—</div>
+      </div>
+      <div class="stat-card" style="--c:var(--accent3)">
+        <div class="stat-icon">✅</div>
+        <div class="stat-label">대여 가능</div>
+        <div class="stat-value" id="stat-available">—</div>
+      </div>
+      <div class="stat-card" style="--c:var(--purple)">
+        <div class="stat-icon">📢</div>
+        <div class="stat-label">공지사항</div>
+        <div class="stat-value" id="stat-notices">—</div>
+      </div>
+    </div>
+    <div class="home-grid">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">📢 최근 공지사항</div>
+          <button class="panel-link" onclick="showPage('notice')">전체보기 →</button>
+        </div>
+        <div id="home-notices"><div class="loading"><div class="spinner"></div></div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">📦 대여 현황</div>
+          <button class="panel-link" onclick="showPage('rental')">신청하기 →</button>
+        </div>
+        <div id="home-rentals"><div class="loading"><div class="spinner"></div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 게임 목록 -->
+  <div class="page" id="page-games">
+    <div class="section-title">🎲 보드게임 <span>목록</span></div>
+    <div class="section-desc">현재 동호회 보유 게임 목록입니다.</div>
+    <div class="game-filters">
+      <div class="search-wrap">
+        <div class="filter-label">검색</div>
+        <input class="search-input" type="text" id="search-q" placeholder="🔍  게임 이름 검색...">
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">장르</div>
+        <div class="filter-row" id="genre-filters">
+          <button class="fbtn on" data-genre="all" onclick="setFilter('genre','all',this)">전체</button>
+          <button class="fbtn" data-genre="전략" onclick="setFilter('genre','전략',this)">전략</button>
+          <button class="fbtn" data-genre="파티" onclick="setFilter('genre','파티',this)">파티</button>
+          <button class="fbtn" data-genre="협력" onclick="setFilter('genre','협력',this)">협력</button>
+          <button class="fbtn" data-genre="추상" onclick="setFilter('genre','추상',this)">추상</button>
+          <button class="fbtn" data-genre="경제" onclick="setFilter('genre','경제',this)">경제</button>
+          <button class="fbtn" data-genre="추리" onclick="setFilter('genre','추리',this)">추리</button>
+          <button class="fbtn" data-genre="가족" onclick="setFilter('genre','가족',this)">가족</button>
+        </div>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">인원</div>
+        <div class="filter-row" id="player-filters">
+          <button class="fbtn on" data-p="all" onclick="setFilter('players','all',this)">전체</button>
+          <button class="fbtn" data-p="2" onclick="setFilter('players','2',this)">2인 가능</button>
+          <button class="fbtn" data-p="4" onclick="setFilter('players','4',this)">4인 이상</button>
+          <button class="fbtn" data-p="6" onclick="setFilter('players','6',this)">6인 이상</button>
+        </div>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">난이도</div>
+        <div class="filter-row" id="diff-filters">
+          <button class="fbtn on" data-d="all" onclick="setFilter('diff','all',this)">전체</button>
+          <button class="fbtn" data-d="1" onclick="setFilter('diff','1',this)">⭐ 쉬움</button>
+          <button class="fbtn" data-d="2" onclick="setFilter('diff','2',this)">⭐⭐ 보통</button>
+          <button class="fbtn" data-d="3" onclick="setFilter('diff','3',this)">⭐⭐⭐ 어려움</button>
+        </div>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">대여 / 정렬</div>
+        <div class="filter-row">
+          <button class="fbtn on" data-avail="all" id="avail-all" onclick="setFilter('avail','all',this)">전체</button>
+          <button class="fbtn" data-avail="yes" onclick="setFilter('avail','yes',this)">대여 가능만</button>
+          <select class="sort-select" id="sort-select" onchange="renderGamesGrid()">
+            <option value="registered_at">최신순</option>
+            <option value="recommend_count">인기순</option>
+            <option value="min_players">인원 적은순</option>
+            <option value="min_time">시간 짧은순</option>
+            <option value="difficulty">난이도 낮은순</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="games-grid" id="games-grid">
+      <div class="loading" style="grid-column:1/-1"><div class="spinner"></div><div>게임 목록 불러오는 중...</div></div>
+    </div>
+  </div>
+
+  <!-- 대여 서비스 -->
+  <div class="page" id="page-rental">
+    <div class="section-title">📦 보드게임 <span>대여</span></div>
+    <div class="section-desc">게임을 빌리고 반납 현황을 확인하세요. 반납 기한은 7일입니다.</div>
+    <div class="rental-grid">
+      <div class="rental-form-card">
+        <div class="panel-title" style="margin-bottom:1.4rem">✏️ 대여 신청</div>
+        <div class="form-group">
+          <label class="form-label">이름</label>
+          <input class="form-control" type="text" id="rent-name" placeholder="이름을 입력하세요">
+        </div>
+        <div class="form-group">
+          <label class="form-label">게임 선택</label>
+          <select class="form-control" id="rent-game">
+            <option value="">— 게임을 선택하세요 —</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">대여 기간</label>
+          <select class="form-control" id="rent-period">
+            <option>3일</option>
+            <option>5일</option>
+            <option selected>7일</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">비고 (선택)</label>
+          <input class="form-control" type="text" id="rent-note" placeholder="특이사항">
+        </div>
+        <button class="submit-btn" onclick="submitRental()">📦 대여 신청하기</button>
+      </div>
+      <div class="rental-list-card">
+        <div class="panel-title" style="margin-bottom:1.4rem">📋 현재 대여 현황</div>
+        <div id="rental-table-wrap"><div class="loading"><div class="spinner"></div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 공지사항 -->
+  <div class="page" id="page-notice">
+    <div class="section-title">📢 공지 <span>사항</span></div>
+    <div class="section-desc">동호회 관련 공지를 확인하세요.</div>
+    <div class="notice-list" id="notice-list">
+      <div class="loading"><div class="spinner"></div></div>
+    </div>
+  </div>
+
+  <!-- 관리자 -->
+  <div class="page" id="page-admin">
+    <div class="section-title">⚙️ 관리자 <span>패널</span></div>
+    <div class="section-desc">게임 등록 및 공지사항 관리</div>
+    <div class="admin-grid">
+      <!-- 게임 등록 -->
+      <div class="admin-card">
+        <div class="admin-card-title">🎲 새 보드게임 등록</div>
+        <div class="form-group">
+          <label class="form-label">게임 이미지 URL</label>
+          <input class="form-control" type="text" id="ag-img" placeholder="https://... 또는 비워두기" oninput="previewImg(this.value)">
+          <div class="img-preview" id="img-preview" onclick="document.getElementById('ag-img').focus()">
+            <span>이미지 URL 입력 시 미리보기</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">게임명 *</label>
+          <input class="form-control" type="text" id="ag-title" placeholder="예: 카탄">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem">
+          <div class="form-group">
+            <label class="form-label">최소 인원 *</label>
+            <input class="form-control" type="number" id="ag-min-p" min="1" max="20" placeholder="2">
+          </div>
+          <div class="form-group">
+            <label class="form-label">최대 인원 *</label>
+            <input class="form-control" type="number" id="ag-max-p" min="1" max="20" placeholder="4">
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem">
+          <div class="form-group">
+            <label class="form-label">최소 시간(분) *</label>
+            <input class="form-control" type="number" id="ag-min-t" min="5" placeholder="30">
+          </div>
+          <div class="form-group">
+            <label class="form-label">최대 시간(분) *</label>
+            <input class="form-control" type="number" id="ag-max-t" min="5" placeholder="60">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">장르 *</label>
+          <select class="form-control" id="ag-genre">
+            <option>전략</option><option>파티</option><option>협력</option>
+            <option>추상</option><option>경제</option><option>추리</option><option>가족</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">난이도 *</label>
+          <div class="stars-input" id="diff-stars-input">
+            <button class="star-btn" data-v="1" onclick="setDiff(1)">★</button>
+            <button class="star-btn" data-v="2" onclick="setDiff(2)">★</button>
+            <button class="star-btn" data-v="3" onclick="setDiff(3)">★</button>
+            <button class="star-btn" data-v="4" onclick="setDiff(4)">★</button>
+            <button class="star-btn" data-v="5" onclick="setDiff(5)">★</button>
+          </div>
+          <input type="hidden" id="ag-diff" value="1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">게임 설명</label>
+          <textarea class="form-control" id="ag-desc" rows="3" placeholder="게임 소개를 입력하세요" style="resize:vertical"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">유튜브 영상 URL</label>
+          <input class="form-control" type="text" id="ag-yt" placeholder="https://youtube.com/...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">대여 가능 여부</label>
+          <select class="form-control" id="ag-avail">
+            <option value="true">✅ 대여 가능</option>
+            <option value="false">❌ 대여 불가</option>
+          </select>
+        </div>
+        <button class="submit-btn" onclick="addGame()">🎲 게임 등록하기</button>
+      </div>
+
+      <!-- 공지사항 관리 -->
+      <div>
+        <div class="admin-card" style="margin-bottom:1.2rem">
+          <div class="admin-card-title">📢 공지사항 등록</div>
+          <div class="form-group">
+            <label class="form-label">카테고리</label>
+            <select class="form-control" id="an-cat">
+              <option value="important">📌 중요</option>
+              <option value="event">🎉 이벤트</option>
+              <option value="general" selected>일반</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">제목 *</label>
+            <input class="form-control" type="text" id="an-title" placeholder="공지 제목">
+          </div>
+          <div class="form-group">
+            <label class="form-label">내용 *</label>
+            <textarea class="form-control" id="an-content" rows="3" placeholder="공지 내용" style="resize:vertical"></textarea>
+          </div>
+          <button class="submit-btn" style="background:var(--purple)" onclick="addNotice()">📢 공지 등록하기</button>
+        </div>
+        <div class="admin-card">
+          <div class="admin-card-title">📋 공지 목록</div>
+          <div class="notice-admin-list" id="admin-notice-list">
+            <div class="loading"><div class="spinner"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 게임 상세 모달 -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal" id="modal-inner">
+    <div class="modal-hero">
+      <div id="modal-hero-content"></div>
+      <button class="modal-close" onclick="closeModal(null,true)">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-genre" id="modal-genre"></div>
+      <div class="modal-title" id="modal-title"></div>
+      <div class="modal-tags" id="modal-tags"></div>
+      <div class="modal-desc" id="modal-desc"></div>
+      <div class="modal-actions">
+        <button class="rec-btn" id="rec-btn" onclick="toggleRec()">👍 추천 <span id="rec-num">0</span></button>
+        <div id="modal-yt"></div>
+      </div>
+      <div class="reviews-section">
+        <div class="reviews-title">💬 한줄평 <span id="review-count" style="color:var(--muted);font-weight:400;font-size:.85rem"></span></div>
+        <div class="review-form">
+          <input class="review-input" id="review-nick" placeholder="닉네임" style="max-width:100px">
+          <input class="review-input" id="review-text" placeholder="한줄 감상을 남겨주세요...">
+          <button class="review-submit" onclick="submitReview()">등록</button>
+        </div>
+        <div id="reviews-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════════════════════════════════════
 // ⚙️  Supabase 설정 — 여기에 본인 값 입력
-const SUPABASE_URL = 'YOUR_SUPABASE_URL';      // ← 실제 URL로 교체
-const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY'; // ← 실제 키로 교체
+// ════════════════════════════════════════
+const SUPABASE_URL = 'https://etmghgvyetuxiotyglrj.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV0bWdoZ3Z5ZXR1eGlvdHlnbHJqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyMzExNzgsImV4cCI6MjA4ODgwNzE3OH0.cDgYyB9LbH_OZxhEWzNEiPwlBi9SHZZ4XLm3OgBRHdY';
 
-// 🔑 코드 설정
-const MEMBER_CODE = 'bdbd';      // 일반 회원 입장 코드
-const ADMIN_CODE  = 'admin1234'; // 관리자 코드 (반드시 변경!)
-```
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-### 4. GitHub에 올리기
+// ════════════════════════════════════════
+// 🔑  앱 설정
+// ════════════════════════════════════════
+const MEMBER_CODE = 'bdbd';   // 일반 회원 코드
+const ADMIN_CODE  = 'admin1234'; // 관리자 코드 (변경 권장)
 
-```bash
-git init
-git add .
-git commit -m "init: 보드게임 동호회 웹사이트"
-git remote add origin https://github.com/YOUR_USERNAME/boardgame-club.git
-git push -u origin main
-```
+let isAdmin = false;
+let allGames = [];
+let filters  = { genre:'all', players:'all', diff:'all', avail:'all' };
+let currentGameId = null;
+let diffVal = 1;
 
-### 5. Vercel 배포
+// 세션 ID (추천 중복 방지용)
+const SESSION_ID = (() => {
+  let id = localStorage.getItem('_bg_sid');
+  if (!id) { id = crypto.randomUUID(); localStorage.setItem('_bg_sid', id); }
+  return id;
+})();
 
-1. https://vercel.com → New Project
-2. GitHub 레포 연결
-3. **Root Directory**: `src` 로 설정
-4. **Framework Preset**: Other
-5. Deploy 클릭 → 자동 배포 완료!
+// ════════════════════════════════════════
+// 🔐 로그인
+// ════════════════════════════════════════
+document.getElementById('code-input').addEventListener('keypress', e => {
+  if (e.key === 'Enter') tryLogin();
+});
 
----
+function tryLogin() {
+  const val = document.getElementById('code-input').value.trim();
+  if (val === ADMIN_CODE) {
+    isAdmin = true;
+    enterApp();
+  } else if (val === MEMBER_CODE) {
+    isAdmin = false;
+    enterApp();
+  } else {
+    const err = document.getElementById('login-error');
+    err.textContent = '❌ 입장 코드가 올바르지 않습니다.';
+    document.getElementById('code-input').value = '';
+    setTimeout(() => err.textContent = '', 3000);
+  }
+}
 
-## 🔑 입장 코드
+function enterApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  if (isAdmin) {
+    document.getElementById('admin-nav').style.display = '';
+    document.getElementById('admin-badge').style.display = '';
+  }
+  const d = new Date();
+  document.getElementById('current-date').textContent =
+    `${d.getMonth()+1}/${d.getDate()} (${['일','월','화','수','목','금','토'][d.getDay()]})`;
+  loadHome();
+}
 
-| 코드 | 권한 |
-|------|------|
-| `bdbd` | 일반 회원 — 게임 조회, 대여 신청, 한줄평, 추천 |
-| `admin1234` | 관리자 — 위 기능 + 게임 등록, 공지 등록/삭제, 반납 처리 |
+function logout() {
+  isAdmin = false;
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('admin-nav').style.display = 'none';
+  document.getElementById('admin-badge').style.display = 'none';
+  document.getElementById('code-input').value = '';
+}
 
-> ⚠️ 관리자 코드는 배포 전 반드시 변경하세요!
+// ════════════════════════════════════════
+// 📄 페이지 전환
+// ════════════════════════════════════════
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  const btn = document.querySelector(`[data-page="${name}"]`);
+  if (btn) btn.classList.add('active');
+  if (name === 'home')   loadHome();
+  if (name === 'games')  loadGames();
+  if (name === 'rental') loadRentalPage();
+  if (name === 'notice') loadNotices();
+  if (name === 'admin')  loadAdminPage();
+}
 
----
+// ════════════════════════════════════════
+// 🏠 홈
+// ════════════════════════════════════════
+async function loadHome() {
+  try {
+    const [gRes, rRes, nRes] = await Promise.all([
+      sb.from('games').select('id,is_available'),
+      sb.from('rentals').select('id,game_id,renter_name,due_date,returned_at').is('returned_at',null).limit(6),
+      sb.from('notices').select('*').order('created_at',{ascending:false}).limit(4),
+    ]);
+    const games = gRes.data || [];
+    const rentals = rRes.data || [];
+    const notices = nRes.data || [];
 
-## ✨ 주요 기능
+    document.getElementById('stat-total').textContent = games.length;
+    document.getElementById('stat-rented').textContent = rentals.length;
+    document.getElementById('stat-available').textContent = games.filter(g=>g.is_available).length;
+    document.getElementById('stat-notices').textContent = notices.length;
 
-### 🎲 게임 목록
-- 게임 이미지, 이름, 인원, 시간, 장르, 난이도, 설명, 유튜브 링크, 대여여부, 등록일자
-- **필터**: 장르 / 인원 / 난이도 / 대여가능 여부
-- **정렬**: 최신순 / 인기순 / 인원 적은순 / 시간 짧은순 / 난이도 낮은순
-- 카드 클릭 → 상세 모달 (한줄평 + 추천 버튼 포함)
+    // 공지 미리보기
+    const hn = document.getElementById('home-notices');
+    if (!notices.length) { hn.innerHTML = '<div class="empty-state">공지사항이 없습니다.</div>'; }
+    else hn.innerHTML = notices.map(n => `
+      <div class="notice-preview-item">
+        <span class="nbadge ${n.category}">${n.category==='important'?'중요':n.category==='event'?'이벤트':'일반'}</span>
+        <div>
+          <div class="notice-text">${esc(n.title)}</div>
+          <div class="notice-date">${fmtDate(n.created_at)}</div>
+        </div>
+      </div>`).join('');
 
-### 📦 대여 서비스
-- 이름 / 게임 선택 / 기간 입력 → 신청
-- 대여 현황 테이블 실시간 표시
-- 관리자: 반납 처리 버튼
+    // 대여 현황
+    const hr = document.getElementById('home-rentals');
+    if (!rentals.length) { hr.innerHTML = '<div class="empty-state" style="padding:1rem">현재 대여 중인 게임이 없습니다.</div>'; }
+    else {
+      const gameIds = [...new Set(rentals.map(r=>r.game_id))];
+      const {data:gs} = await sb.from('games').select('id,title').in('id',gameIds);
+      const gMap = Object.fromEntries((gs||[]).map(g=>[g.id,g.title]));
+      hr.innerHTML = rentals.map(r => `
+        <div class="rental-row">
+          <div>
+            <div class="rental-name">${esc(gMap[r.game_id]||'?')}</div>
+            <div class="rental-who">${esc(r.renter_name)} · ~${fmtDate(r.due_date)}</div>
+          </div>
+          <span class="badge out">대여중</span>
+        </div>`).join('');
+    }
+  } catch(e) { console.error(e); }
+}
 
-### 📢 공지사항
-- 중요 / 이벤트 / 일반 카테고리 구분
+// ════════════════════════════════════════
+// 🎲 게임 목록
+// ════════════════════════════════════════
+async function loadGames() {
+  const grid = document.getElementById('games-grid');
+  grid.innerHTML = `<div class="loading" style="grid-column:1/-1"><div class="spinner"></div><div>불러오는 중...</div></div>`;
+  try {
+    const { data, error } = await sb.from('games_with_stats').select('*');
+    if (error) throw error;
+    allGames = data || [];
+    populateRentSelect(allGames);
+    renderGamesGrid();
+  } catch(e) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">게임 목록을 불러오지 못했습니다.<br><small>${e.message}</small></div>`;
+  }
+}
 
-### ⚙️ 관리자 패널 (admin 코드 전용)
-- 새 보드게임 등록 (이미지 URL 미리보기, 별점 난이도 선택)
-- 공지사항 등록 / 삭제
+function renderGamesGrid() {
+  const q = (document.getElementById('search-q')?.value||'').toLowerCase();
+  const sort = document.getElementById('sort-select')?.value || 'registered_at';
+  let list = allGames.filter(g => {
+    if (q && !g.title.toLowerCase().includes(q)) return false;
+    if (filters.genre !== 'all' && g.genre !== filters.genre) return false;
+    if (filters.players !== 'all') {
+      const p = parseInt(filters.players);
+      if (filters.players === '2' && g.min_players > 2) return false;
+      if (filters.players === '4' && g.max_players < 4) return false;
+      if (filters.players === '6' && g.max_players < 6) return false;
+    }
+    if (filters.diff !== 'all') {
+      const d = parseInt(filters.diff);
+      if (d <= 1 && g.difficulty > 2) return false;
+      if (d === 2 && (g.difficulty < 2 || g.difficulty > 3)) return false;
+      if (d >= 3 && g.difficulty < 3) return false;
+    }
+    if (filters.avail === 'yes' && !g.is_available) return false;
+    return true;
+  });
+  list.sort((a,b) => {
+    if (sort === 'recommend_count') return (b.recommend_count||0) - (a.recommend_count||0);
+    if (sort === 'min_players') return a.min_players - b.min_players;
+    if (sort === 'min_time') return a.min_time - b.min_time;
+    if (sort === 'difficulty') return a.difficulty - b.difficulty;
+    return new Date(b.registered_at) - new Date(a.registered_at);
+  });
 
----
+  const grid = document.getElementById('games-grid');
+  if (!list.length) { grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">조건에 맞는 게임이 없습니다.</div>`; return; }
+  grid.innerHTML = list.map(g => `
+    <div class="game-card" onclick="openModal('${g.id}')">
+      <div class="game-card-img">
+        ${g.image_url
+          ? `<img src="${esc(g.image_url)}" alt="${esc(g.title)}" loading="lazy" onerror="this.parentElement.innerHTML='🎲'">`
+          : '🎲'}
+      </div>
+      <div class="game-card-body">
+        <div class="game-card-genre">${esc(g.genre)}</div>
+        <div class="game-card-title">${esc(g.title)}</div>
+        <div class="game-card-meta">
+          <span class="tag players">👥 ${g.min_players}~${g.max_players}명</span>
+          <span class="tag time">⏱ ${g.min_time}~${g.max_time}분</span>
+          <span class="tag diff">${'★'.repeat(g.difficulty)}${'☆'.repeat(5-g.difficulty)}</span>
+          <span class="tag ${g.is_available?'avail':'unavail'}">${g.is_available?'✅ 대여가능':'❌ 대여중'}</span>
+        </div>
+        <div class="game-card-footer">
+          <div class="rec-count">👍 추천 <span>${g.recommend_count||0}</span> · 💬 ${g.review_count||0}개</div>
+          <div style="font-size:.72rem;color:var(--muted)">${fmtDate(g.registered_at)}</div>
+        </div>
+      </div>
+    </div>`).join('');
+}
 
-## 🗄️ DB 테이블 구조
+function setFilter(type, val, btn) {
+  filters[type] = val;
+  // 같은 그룹 버튼 on/off
+  const parent = btn.closest('.filter-row') || btn.closest('#genre-filters') || btn.closest('#player-filters') || btn.closest('#diff-filters');
+  if (parent) parent.querySelectorAll('.fbtn').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  renderGamesGrid();
+}
 
-| 테이블 | 설명 |
-|--------|------|
-| `games` | 보드게임 정보 |
-| `reviews` | 한줄평 |
-| `recommendations` | 추천(중복 방지) |
-| `rentals` | 대여 기록 |
-| `notices` | 공지사항 |
-| `games_with_stats` | 게임 + 추천수 + 한줄평수 (뷰) |
+document.addEventListener('DOMContentLoaded', () => {
+  const sq = document.getElementById('search-q');
+  if (sq) sq.addEventListener('input', renderGamesGrid);
+});
+
+// ════════════════════════════════════════
+// 🔍 게임 모달
+// ════════════════════════════════════════
+async function openModal(gameId) {
+  currentGameId = gameId;
+  document.getElementById('modal-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  const { data:g } = await sb.from('games_with_stats').select('*').eq('id',gameId).single();
+  if (!g) return;
+
+  document.getElementById('modal-hero-content').innerHTML = g.image_url
+    ? `<img src="${esc(g.image_url)}" alt="${esc(g.title)}">`
+    : `<div class="modal-hero-placeholder">🎲</div>`;
+
+  document.getElementById('modal-genre').textContent = g.genre;
+  document.getElementById('modal-title').textContent = g.title;
+  document.getElementById('modal-tags').innerHTML = `
+    <span class="tag players">👥 ${g.min_players}~${g.max_players}명</span>
+    <span class="tag time">⏱ ${g.min_time}~${g.max_time}분</span>
+    <span class="tag diff">${'★'.repeat(g.difficulty)}${'☆'.repeat(5-g.difficulty)}</span>
+    <span class="tag ${g.is_available?'avail':'unavail'}">${g.is_available?'✅ 대여 가능':'❌ 대여중'}</span>
+    <span class="tag">📅 ${fmtDate(g.registered_at)}</span>`;
+  document.getElementById('modal-desc').textContent = g.description || '게임 설명이 없습니다.';
+
+  document.getElementById('modal-yt').innerHTML = g.youtube_url
+    ? `<a href="${esc(g.youtube_url)}" target="_blank" rel="noopener"><button class="yt-btn">▶ 유튜브로 보기</button></a>`
+    : '';
+
+  // 추천
+  const {count} = await sb.from('recommendations').select('id',{count:'exact',head:true}).eq('game_id',gameId);
+  const {data:myRec} = await sb.from('recommendations').select('id').eq('game_id',gameId).eq('session_id',SESSION_ID);
+  document.getElementById('rec-num').textContent = count||0;
+  const rb = document.getElementById('rec-btn');
+  rb.classList.toggle('liked', !!(myRec&&myRec.length));
+
+  // 리뷰
+  loadReviews(gameId);
+}
+
+async function loadReviews(gameId) {
+  const {data} = await sb.from('reviews').select('*').eq('game_id',gameId).order('created_at',{ascending:false});
+  const list = data||[];
+  document.getElementById('review-count').textContent = `(${list.length}개)`;
+  document.getElementById('reviews-list').innerHTML = list.length
+    ? list.map(r=>`
+      <div class="review-item">
+        <div class="review-nick">✍️ ${esc(r.nickname)}</div>
+        <div class="review-content">${esc(r.content)}</div>
+        <div class="review-date">${fmtDate(r.created_at)}</div>
+      </div>`).join('')
+    : '<div style="color:var(--muted);font-size:.85rem;padding:.5rem 0">아직 한줄평이 없습니다. 첫 번째로 남겨보세요!</div>';
+}
+
+async function submitReview() {
+  const nick = document.getElementById('review-nick').value.trim();
+  const text = document.getElementById('review-text').value.trim();
+  if (!nick || !text) { showToast('닉네임과 내용을 입력해주세요.'); return; }
+  const {error} = await sb.from('reviews').insert({game_id:currentGameId, nickname:nick, content:text});
+  if (error) { showToast('오류가 발생했습니다.'); return; }
+  document.getElementById('review-text').value = '';
+  loadReviews(currentGameId);
+  showToast('✍️ 한줄평이 등록되었습니다!');
+}
+
+async function toggleRec() {
+  const {data:existing} = await sb.from('recommendations').select('id').eq('game_id',currentGameId).eq('session_id',SESSION_ID);
+  if (existing && existing.length) {
+    await sb.from('recommendations').delete().eq('game_id',currentGameId).eq('session_id',SESSION_ID);
+    document.getElementById('rec-btn').classList.remove('liked');
+    const cur = parseInt(document.getElementById('rec-num').textContent)||0;
+    document.getElementById('rec-num').textContent = Math.max(0,cur-1);
+  } else {
+    await sb.from('recommendations').insert({game_id:currentGameId, session_id:SESSION_ID});
+    document.getElementById('rec-btn').classList.add('liked');
+    const cur = parseInt(document.getElementById('rec-num').textContent)||0;
+    document.getElementById('rec-num').textContent = cur+1;
+    showToast('👍 추천했습니다!');
+  }
+}
+
+function closeModal(e, force=false) {
+  if (force || (e && e.target === document.getElementById('modal-overlay'))) {
+    document.getElementById('modal-overlay').classList.remove('open');
+    document.body.style.overflow = '';
+    currentGameId = null;
+  }
+}
+
+// ════════════════════════════════════════
+// 📦 대여
+// ════════════════════════════════════════
+async function loadRentalPage() {
+  await loadRentalTable();
+}
+
+async function loadRentalTable() {
+  const wrap = document.getElementById('rental-table-wrap');
+  const {data:rentals} = await sb.from('rentals').select('*').is('returned_at',null).order('rented_at',{ascending:false});
+  const {data:allR} = await sb.from('rentals').select('*').not('returned_at','is',null).order('returned_at',{ascending:false}).limit(3);
+  const combined = [...(rentals||[]), ...(allR||[])];
+  if (!combined.length) { wrap.innerHTML = '<div class="empty-state">대여 기록이 없습니다.</div>'; return; }
+  const ids = [...new Set(combined.map(r=>r.game_id))];
+  const {data:gs} = await sb.from('games').select('id,title').in('id',ids);
+  const gMap = Object.fromEntries((gs||[]).map(g=>[g.id,g.title]));
+  wrap.innerHTML = `
+    <table class="rental-table">
+      <thead><tr><th>게임명</th><th>대여자</th><th>반납일</th><th>상태</th>${isAdmin?'<th>관리</th>':''}</tr></thead>
+      <tbody>${combined.map(r=>`
+        <tr>
+          <td>${esc(gMap[r.game_id]||'?')}</td>
+          <td>${esc(r.renter_name)}</td>
+          <td>${r.returned_at?'반납완료':fmtDate(r.due_date)}</td>
+          <td><span class="badge ${r.returned_at?'in':'out'}">${r.returned_at?'반납':'대여중'}</span></td>
+          ${isAdmin&&!r.returned_at?`<td><button class="return-btn" onclick="returnGame('${r.id}','${r.game_id}')">반납처리</button></td>`:isAdmin?'<td>—</td>':''}
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+async function submitRental() {
+  const name = document.getElementById('rent-name').value.trim();
+  const gameId = document.getElementById('rent-game').value;
+  const period = parseInt(document.getElementById('rent-period').value);
+  const note = document.getElementById('rent-note').value.trim();
+  if (!name || !gameId) { showToast('이름과 게임을 선택해주세요.'); return; }
+  const due = new Date(); due.setDate(due.getDate()+period);
+  const {error} = await sb.from('rentals').insert({game_id:gameId, renter_name:name, note, due_date:due.toISOString()});
+  if (error) { showToast('오류: '+error.message); return; }
+  await sb.from('games').update({is_available:false}).eq('id',gameId);
+  document.getElementById('rent-name').value='';
+  document.getElementById('rent-game').value='';
+  document.getElementById('rent-note').value='';
+  loadRentalTable();
+  showToast('📦 대여 신청이 완료되었습니다!');
+}
+
+async function returnGame(rentalId, gameId) {
+  await sb.from('rentals').update({returned_at:new Date().toISOString()}).eq('id',rentalId);
+  await sb.from('games').update({is_available:true}).eq('id',gameId);
+  loadRentalTable();
+  showToast('✅ 반납 처리되었습니다!');
+}
+
+function populateRentSelect(games) {
+  const sel = document.getElementById('rent-game');
+  sel.innerHTML = '<option value="">— 게임을 선택하세요 —</option>' +
+    games.filter(g=>g.is_available).map(g=>`<option value="${g.id}">${esc(g.title)}</option>`).join('');
+}
+
+// ════════════════════════════════════════
+// 📢 공지
+// ════════════════════════════════════════
+async function loadNotices() {
+  const list = document.getElementById('notice-list');
+  list.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  const {data} = await sb.from('notices').select('*').order('created_at',{ascending:false});
+  const notices = data||[];
+  if (!notices.length) { list.innerHTML='<div class="empty-state">공지사항이 없습니다.</div>'; return; }
+  const labels = {important:'📌 중요', event:'🎉 이벤트', general:'일반'};
+  list.innerHTML = notices.map(n=>`
+    <div class="notice-card">
+      <span class="notice-card-badge ${n.category}">${labels[n.category]||'일반'}</span>
+      <div class="notice-card-content">
+        <div class="notice-card-title">${esc(n.title)}</div>
+        <div class="notice-card-preview">${esc(n.content)}</div>
+      </div>
+      <div class="notice-card-date">${fmtDate(n.created_at)}</div>
+    </div>`).join('');
+}
+
+// ════════════════════════════════════════
+// ⚙️ 관리자
+// ════════════════════════════════════════
+async function loadAdminPage() {
+  if (!isAdmin) { showPage('home'); return; }
+  loadAdminNotices();
+}
+
+async function loadAdminNotices() {
+  const {data} = await sb.from('notices').select('*').order('created_at',{ascending:false});
+  const el = document.getElementById('admin-notice-list');
+  el.innerHTML = (data||[]).map(n=>`
+    <div class="notice-admin-item">
+      <div>
+        <span class="nbadge ${n.category}" style="margin-right:.5rem">${n.category==='important'?'중요':n.category==='event'?'이벤트':'일반'}</span>
+        <span style="font-size:.85rem">${esc(n.title)}</span>
+      </div>
+      <button class="delete-btn" onclick="deleteNotice('${n.id}')">삭제</button>
+    </div>`).join('') || '<div style="color:var(--muted);font-size:.85rem">공지사항 없음</div>';
+}
+
+async function addGame() {
+  const title = document.getElementById('ag-title').value.trim();
+  const minP = parseInt(document.getElementById('ag-min-p').value);
+  const maxP = parseInt(document.getElementById('ag-max-p').value);
+  const minT = parseInt(document.getElementById('ag-min-t').value);
+  const maxT = parseInt(document.getElementById('ag-max-t').value);
+  if (!title||!minP||!maxP||!minT||!maxT) { showToast('필수 항목을 모두 입력해주세요.'); return; }
+  const payload = {
+    title,
+    image_url: document.getElementById('ag-img').value.trim()||null,
+    min_players:minP, max_players:maxP,
+    min_time:minT, max_time:maxT,
+    genre: document.getElementById('ag-genre').value,
+    difficulty: parseInt(document.getElementById('ag-diff').value)||1,
+    description: document.getElementById('ag-desc').value.trim()||null,
+    youtube_url: document.getElementById('ag-yt').value.trim()||null,
+    is_available: document.getElementById('ag-avail').value === 'true',
+  };
+  const {error} = await sb.from('games').insert(payload);
+  if (error) { showToast('오류: '+error.message); return; }
+  ['ag-title','ag-img','ag-min-p','ag-max-p','ag-min-t','ag-max-t','ag-desc','ag-yt'].forEach(id=>{
+    document.getElementById(id).value='';
+  });
+  document.getElementById('img-preview').innerHTML='<span>이미지 URL 입력 시 미리보기</span>';
+  setDiff(1);
+  showToast('🎲 게임이 등록되었습니다!');
+}
+
+async function addNotice() {
+  const title = document.getElementById('an-title').value.trim();
+  const content = document.getElementById('an-content').value.trim();
+  const category = document.getElementById('an-cat').value;
+  if (!title||!content) { showToast('제목과 내용을 입력해주세요.'); return; }
+  const {error} = await sb.from('notices').insert({title,content,category});
+  if (error) { showToast('오류: '+error.message); return; }
+  document.getElementById('an-title').value='';
+  document.getElementById('an-content').value='';
+  loadAdminNotices();
+  showToast('📢 공지가 등록되었습니다!');
+}
+
+async function deleteNotice(id) {
+  if (!confirm('공지를 삭제할까요?')) return;
+  await sb.from('notices').delete().eq('id',id);
+  loadAdminNotices();
+  showToast('🗑 공지가 삭제되었습니다.');
+}
+
+function setDiff(val) {
+  diffVal = val;
+  document.getElementById('ag-diff').value = val;
+  document.querySelectorAll('#diff-stars-input .star-btn').forEach(b=>{
+    b.classList.toggle('on', parseInt(b.dataset.v) <= val);
+  });
+}
+
+function previewImg(url) {
+  const p = document.getElementById('img-preview');
+  if (url) p.innerHTML = `<img src="${url}" onerror="this.parentElement.innerHTML='<span>이미지를 불러올 수 없습니다</span>'">`;
+  else p.innerHTML = '<span>이미지 URL 입력 시 미리보기</span>';
+}
+
+// ════════════════════════════════════════
+// 🛠 유틸
+// ════════════════════════════════════════
+function esc(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return `${d.getFullYear().toString().slice(2)}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 3500);
+}
+</script>
+</body>
+</html>
