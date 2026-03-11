@@ -179,9 +179,9 @@
         <div class="fg">
           <label class="flabel">대여 기간</label>
           <select class="fselect" id="r-period">
-            <option value="3">3일</option>
+            <option value="3" selected>3일</option>
             <option value="5">5일</option>
-            <option value="7" selected>7일</option>
+            <option value="7">7일</option>
           </select>
         </div>
         <div class="fg">
@@ -405,6 +405,107 @@
       <div class="nm-title"   id="nm-title"></div>
       <div class="nm-meta"    id="nm-meta"></div>
       <div class="nm-content" id="nm-content"></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- 게임 수정 모달 (관리자) -->
+<div class="moverlay" id="edit-game-modal" onclick="closeEditGameModal(event)">
+  <div class="msheet">
+    <div class="mhandle"></div>
+    <div class="mbody" style="padding-top:.5rem">
+      <div style="font-size:1rem;font-weight:800;margin-bottom:1rem">✏️ 게임 정보 수정</div>
+      <input type="hidden" id="eg-id">
+
+      <!-- 이미지 -->
+      <div class="fg">
+        <label class="flabel">게임 이미지</label>
+        <div class="img-drop" id="eg-img-drop" onclick="document.getElementById('eg-img-file').click()">
+          <span style="font-size:1.8rem">📸</span>
+          <div class="img-drop-txt">탭하여 이미지 변경</div>
+        </div>
+        <input type="file" id="eg-img-file" accept="image/*" style="display:none" onchange="handleEditImgUpload(this)">
+      </div>
+
+      <!-- 게임명 -->
+      <div class="fg">
+        <label class="flabel">게임명 *</label>
+        <input class="finput" type="text" id="eg-title" placeholder="게임명">
+      </div>
+
+      <!-- 인원 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem">
+        <div class="fg">
+          <label class="flabel">최소 인원</label>
+          <input class="finput" type="number" id="eg-minp" min="1" max="20">
+        </div>
+        <div class="fg">
+          <label class="flabel">최대 인원</label>
+          <input class="finput" type="number" id="eg-maxp" min="1" max="20">
+        </div>
+      </div>
+
+      <!-- 시간 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem">
+        <div class="fg">
+          <label class="flabel">최소 시간(분)</label>
+          <input class="finput" type="number" id="eg-mint" min="5">
+        </div>
+        <div class="fg">
+          <label class="flabel">최대 시간(분)</label>
+          <input class="finput" type="number" id="eg-maxt" min="5">
+        </div>
+      </div>
+
+      <!-- 장르 -->
+      <div class="fg">
+        <label class="flabel">장르</label>
+        <select class="fselect" id="eg-genre">
+          <option>전략</option><option>파티</option><option>협력</option>
+          <option>추상</option><option>경제</option><option>추리</option><option>가족</option>
+        </select>
+      </div>
+
+      <!-- 난이도 -->
+      <div class="fg">
+        <label class="flabel">난이도</label>
+        <div class="star-row" id="eg-star-row">
+          <button class="star-btn on" data-v="1" onclick="setEditDiff(1)">★</button>
+          <button class="star-btn"    data-v="2" onclick="setEditDiff(2)">★</button>
+          <button class="star-btn"    data-v="3" onclick="setEditDiff(3)">★</button>
+          <button class="star-btn"    data-v="4" onclick="setEditDiff(4)">★</button>
+          <button class="star-btn"    data-v="5" onclick="setEditDiff(5)">★</button>
+        </div>
+        <input type="hidden" id="eg-diff" value="1">
+      </div>
+
+      <!-- 설명 -->
+      <div class="fg">
+        <label class="flabel">게임 설명</label>
+        <textarea class="ftextarea" id="eg-desc" rows="3" placeholder="게임 설명"></textarea>
+      </div>
+
+      <!-- 유튜브 -->
+      <div class="fg">
+        <label class="flabel">유튜브 링크 (선택)</label>
+        <input class="finput" type="url" id="eg-yt" placeholder="https://youtube.com/...">
+      </div>
+
+      <!-- 대여 가능 -->
+      <div class="fg">
+        <label class="flabel">대여 가능 여부</label>
+        <select class="fselect" id="eg-avail">
+          <option value="true">✅ 대여 가능</option>
+          <option value="false">❌ 대여 불가</option>
+        </select>
+      </div>
+
+      <!-- 버튼 -->
+      <div style="display:flex;gap:.6rem;margin-top:.5rem">
+        <button class="btn btn-outline btn-full" onclick="closeEditGameModal()">취소</button>
+        <button class="btn btn-primary btn-full" onclick="saveEditGame()">✅ 저장하기</button>
+      </div>
     </div>
   </div>
 </div>
