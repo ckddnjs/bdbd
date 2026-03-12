@@ -176,7 +176,7 @@ function renderGames() {
   const el = document.getElementById('games-list');
   if (!list.length) { el.innerHTML='<div class="empty"><div class="ei">🔍</div><p>조건에 맞는 게임이 없어요</p></div>'; return; }
   el.innerHTML = list.map(g=>`
-    <div class="gitem" onclick="openGameModal('${g.id}')">
+    <div class="gitem" onclick="openGameModal('${g.id}','games')">
       <div class="gthumb">
         ${g.image_url?`<img src="${esc(g.image_url)}" alt="${esc(g.title)}" loading="lazy" onerror="this.parentElement.innerHTML='🎲'">`:'🎲'}
       </div>
@@ -221,84 +221,116 @@ function setSort(val, btn) {
 }
 
 /* ══════════════════════════════════════
-   GAME MODAL
+   GAME DETAIL PAGE
 ══════════════════════════════════════ */
-async function openGameModal(id) {
+let prevPage = 'games';
+
+async function openGameModal(id, from) {
+  prevPage = from || 'games';
   currentGameId = id;
-  document.getElementById('game-modal').classList.add('open');
-  document.body.style.overflow = 'hidden';
-  const {data:g} = await sb.from('games_with_stats').select('*').eq('id',id).single();
+
+  // 현재 페이지 숨기고 상세 페이지 열기
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.bnav').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-game-detail').classList.add('active');
+  window.scrollTo(0, 0);
+
+  // 로딩 표시
+  document.getElementById('gd-hero').innerHTML = '<div class="spin-wrap"><div class="spinner"></div></div>';
+  document.getElementById('gd-title').textContent = '불러오는 중...';
+  document.getElementById('gd-genre').textContent = '';
+  document.getElementById('gd-tags').innerHTML   = '';
+  document.getElementById('gd-desc').textContent  = '';
+  document.getElementById('gd-actions').innerHTML = '';
+  document.getElementById('gd-rev-list').innerHTML = '';
+  document.getElementById('gd-rev-count').textContent = '';
+
+  const {data: g} = await sb.from('games_with_stats').select('*').eq('id', id).single();
   if (!g) return;
-  document.getElementById('m-hero').innerHTML = g.image_url
+
+  // 히어로
+  document.getElementById('gd-hero').innerHTML = g.image_url
     ? `<img src="${esc(g.image_url)}" alt="${esc(g.title)}">
-       <div class="mhero-avail"><span class="pill ${g.is_available?'p-green':'p-red'}">${g.is_available?'✅ 대여가능':'❌ 대여중'}</span></div>`
-    : `🎲<div class="mhero-avail"><span class="pill ${g.is_available?'p-green':'p-red'}">${g.is_available?'✅ 대여가능':'❌ 대여중'}</span></div>`;
-  document.getElementById('m-genre').textContent = g.genre;
-  document.getElementById('m-title').textContent = g.title;
-  document.getElementById('m-tags').innerHTML = `
+       <div class="gd-hero-badge"><span class="pill ${g.is_available ? 'p-green' : 'p-red'}">${g.is_available ? '✅ 대여 가능' : '❌ 대여 중'}</span></div>`
+    : `🎲<div class="gd-hero-badge"><span class="pill ${g.is_available ? 'p-green' : 'p-red'}">${g.is_available ? '✅ 대여 가능' : '❌ 대여 중'}</span></div>`;
+
+  document.getElementById('gd-genre').textContent = g.genre || '';
+  document.getElementById('gd-title').textContent  = g.title;
+  document.getElementById('gd-tags').innerHTML = `
     <span class="pill p-yellow">👥 ${g.min_players}~${g.max_players}명</span>
     <span class="pill p-blue">⏱ ${g.min_time}~${g.max_time}분</span>
-    <span class="pill p-purple">${'★'.repeat(g.difficulty)}${'☆'.repeat(5-g.difficulty)}</span>
+    <span class="pill p-purple">${'★'.repeat(g.difficulty)}${'☆'.repeat(5 - g.difficulty)}</span>
     <span class="pill p-gray">📅 ${fmt(g.registered_at)}</span>`;
-  document.getElementById('m-desc').textContent = g.description||'게임 설명이 없습니다.';
-  document.getElementById('m-yt').innerHTML = g.youtube_url
-    ? `<a href="${esc(g.youtube_url)}" target="_blank" rel="noopener">
-         <button class="btn btn-sm" style="background:#FF0000;color:white">▶ 유튜브</button>
-       </a>` : '';
-  const {count} = await sb.from('recommendations').select('id',{count:'exact',head:true}).eq('game_id',id);
-  const {data:myR} = await sb.from('recommendations').select('id').eq('game_id',id).eq('session_id',SID);
-  document.getElementById('rec-num').textContent = count||0;
-  document.getElementById('rec-btn').classList.toggle('liked', !!(myR&&myR.length));
+  document.getElementById('gd-desc').textContent = g.description || '게임 설명이 없습니다.';
+
+  const {count} = await sb.from('recommendations').select('id', {count: 'exact', head: true}).eq('game_id', id);
+  const {data: myR} = await sb.from('recommendations').select('id').eq('game_id', id).eq('session_id', SID);
+  const liked = !!(myR && myR.length);
+
+  document.getElementById('gd-actions').innerHTML =
+    `<button class="gd-rec-btn ${liked ? 'liked' : ''}" id="gd-rec-btn" onclick="toggleRec()">
+       👍 추천 <span id="gd-rec-num">${count || 0}</span>
+     </button>
+     ${g.youtube_url
+       ? `<a href="${esc(g.youtube_url)}" target="_blank" rel="noopener">
+            <button class="btn btn-sm" style="background:#CC0000;color:white">▶ 유튜브 규칙</button>
+          </a>` : ''}`;
+
   loadReviews(id);
 }
 
+function closeGameDetail() {
+  document.getElementById('page-game-detail').classList.remove('active');
+  document.getElementById('page-' + prevPage).classList.add('active');
+  const nb = document.querySelector(`.bnav[data-page="${prevPage}"]`);
+  if (nb) nb.classList.add('active');
+  currentGameId = null;
+  window.scrollTo(0, 0);
+}
+
 async function loadReviews(id) {
-  const {data} = await sb.from('reviews').select('*').eq('game_id',id).order('created_at',{ascending:false});
-  const list = data||[];
-  document.getElementById('rev-count').textContent = `(${list.length}개)`;
-  document.getElementById('rev-list').innerHTML = list.length
-    ? list.map(r=>`
-      <div class="rev-line">
-        <div class="rev-nick-lbl">✍️ ${esc(r.nickname)}</div>
-        <div class="rev-txt">${esc(r.content)}</div>
-        <div class="rev-date">${fmt(r.created_at)}</div>
-      </div>`).join('')
+  const {data} = await sb.from('reviews').select('*').eq('game_id', id).order('created_at', {ascending: false});
+  const list = data || [];
+  document.getElementById('gd-rev-count').textContent = `(${list.length}개)`;
+  document.getElementById('gd-rev-list').innerHTML = list.length
+    ? list.map(r => `
+        <div class="rev-line">
+          <div class="rev-nick-lbl">✍️ ${esc(r.nickname)}</div>
+          <div class="rev-txt">${esc(r.content)}</div>
+          <div class="rev-date">${fmt(r.created_at)}</div>
+        </div>`).join('')
     : '<div style="font-size:.8rem;color:var(--text3);padding:.5rem 0">첫 번째 한줄평을 남겨보세요!</div>';
 }
 
 async function submitReview() {
-  const nick = document.getElementById('rev-nick').value.trim();
-  const text = document.getElementById('rev-text').value.trim();
-  if (!nick||!text) { showToast('닉네임과 내용을 입력해주세요'); return; }
-  await sb.from('reviews').insert({game_id:currentGameId, nickname:nick, content:text});
-  document.getElementById('rev-text').value = '';
+  const nick = document.getElementById('gd-rev-nick').value.trim();
+  const text = document.getElementById('gd-rev-text').value.trim();
+  if (!nick || !text) { showToast('닉네임과 내용을 입력해주세요'); return; }
+  await sb.from('reviews').insert({game_id: currentGameId, nickname: nick, content: text});
+  document.getElementById('gd-rev-text').value = '';
   loadReviews(currentGameId);
   showToast('✍️ 한줄평이 등록됐어요!');
 }
 
 async function toggleRec() {
-  const {data:ex} = await sb.from('recommendations').select('id').eq('game_id',currentGameId).eq('session_id',SID);
-  const btn = document.getElementById('rec-btn');
-  const num = parseInt(document.getElementById('rec-num').textContent)||0;
-  if (ex&&ex.length) {
-    await sb.from('recommendations').delete().eq('game_id',currentGameId).eq('session_id',SID);
+  const {data: ex} = await sb.from('recommendations').select('id').eq('game_id', currentGameId).eq('session_id', SID);
+  const btn = document.getElementById('gd-rec-btn');
+  const num = parseInt(document.getElementById('gd-rec-num').textContent) || 0;
+  if (ex && ex.length) {
+    await sb.from('recommendations').delete().eq('game_id', currentGameId).eq('session_id', SID);
     btn.classList.remove('liked');
-    document.getElementById('rec-num').textContent = Math.max(0,num-1);
+    document.getElementById('gd-rec-num').textContent = Math.max(0, num - 1);
   } else {
-    await sb.from('recommendations').insert({game_id:currentGameId, session_id:SID});
+    await sb.from('recommendations').insert({game_id: currentGameId, session_id: SID});
     btn.classList.add('liked');
-    document.getElementById('rec-num').textContent = num+1;
+    document.getElementById('gd-rec-num').textContent = num + 1;
     showToast('👍 추천했어요!');
   }
 }
 
-function closeGameModal(e) {
-  if (!e||e.target===document.getElementById('game-modal')) {
-    document.getElementById('game-modal').classList.remove('open');
-    document.body.style.overflow = '';
-    currentGameId = null;
-  }
-}
+
+// 하위 호환 (게임 목록 카드 onclick에서 호출)
+function closeGameModal() { closeGameDetail(); }
 
 /* ══════════════════════════════════════
    RENTAL
