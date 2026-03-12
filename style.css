@@ -1,463 +1,998 @@
-/* ═══════════════════════════════════
-   보동보동 v3 — 가독성 중심 스타일
-═══════════════════════════════════ */
-:root {
-  --accent:    #4F63D2;
-  --accent-lt: #EEF0FD;
-  --accent-dk: #3B4DB8;
+/* ═══════════════════════════════════════════
+   보동보동 — app.js
+═══════════════════════════════════════════ */
 
-  --green:     #12875A;
-  --green-lt:  #D9F5EB;
-  --red:       #C8372D;
-  --red-lt:    #FDECEA;
-  --orange:    #C05E00;
-  --orange-lt: #FEF0E0;
-  --yellow:    #B08500;
-  --yellow-lt: #FEF9E0;
-  --blue:      #1565C0;
-  --blue-lt:   #E3EEF9;
-  --purple:    #6A35A8;
-  --purple-lt: #F0E8FA;
+const SUPABASE_URL = 'https://etmghgvyetuxiotyglrj.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV0bWdoZ3Z5ZXR1eGlvdHlnbHJqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyMzExNzgsImV4cCI6MjA4ODgwNzE3OH0.cDgYyB9LbH_OZxhEWzNEiPwlBi9SHZZ4XLm3OgBRHdY';
+const MEMBER_CODE = 'bdbd';
+const ADMIN_CODE  = 'admin1234';
 
-  --bg:      #F4F5F9;
-  --bg2:     #ECEEF5;
-  --card:    #FFFFFF;
-  --border:  #DDE0EC;
-  --border2: #C8CCE0;
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  --text:    #18192A;
-  --text2:   #5A5E7A;
-  --text3:   #9EA3BF;
+let isAdmin       = false;
+let allGames      = [];
+let gFilters      = { genre:'all', players:'all', diff:'all', avail:'all' };
+let gSort         = 'registered_at';
+let currentGameId = null;
+let diffVal       = 1;
+let editDiffVal   = 1;
+let editImgUrl    = '';
+let acAll         = [];
+let csvParsed     = [];
 
-  --shadow:  0 1px 6px rgba(28,29,46,.07);
-  --shadow2: 0 4px 20px rgba(28,29,46,.11);
-  --r:    12px;
-  --rsm:  8px;
-  --rfull:999px;
-}
+const SID = (() => {
+  let id = localStorage.getItem('_bd_sid');
+  if (!id) { id = crypto.randomUUID(); localStorage.setItem('_bd_sid', id); }
+  return id;
+})();
 
-/* ── Reset ── */
-*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html{scroll-behavior:smooth}
-body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overscroll-behavior:none}
-button{cursor:pointer;font-family:inherit;border:none;outline:none}
-input,select,textarea{font-family:inherit;outline:none}
-img{display:block}
-a{color:inherit;text-decoration:none}
-::-webkit-scrollbar{width:3px;height:3px}
-::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
-
-/* ═══════════════════════
+/* ══════════════════════════════════════
    LOGIN
-═══════════════════════ */
-#login-screen{
-  min-height:100vh;display:flex;align-items:center;justify-content:center;
-  background:linear-gradient(150deg,#F0F2FF,#F4F5F9 55%,#EDF4FF);
-  padding:1.5rem;position:relative;overflow:hidden;
+══════════════════════════════════════ */
+document.getElementById('code-input').addEventListener('keypress', e => {
+  if (e.key === 'Enter') tryLogin();
+});
+
+function tryLogin() {
+  const v = document.getElementById('code-input').value.trim();
+  if (v === ADMIN_CODE)       { isAdmin = true;  enterApp(); }
+  else if (v === MEMBER_CODE) { isAdmin = false; enterApp(); }
+  else {
+    const el = document.getElementById('login-error');
+    el.textContent = '❌ 입장 코드가 올바르지 않습니다.';
+    document.getElementById('code-input').value = '';
+    setTimeout(() => el.textContent = '', 3000);
+  }
 }
-.ldeco{position:absolute;inset:0;pointer-events:none}
-.ldeco span{position:absolute;animation:floaty 6s ease-in-out infinite;opacity:.15;user-select:none;font-size:2rem}
-.ldeco span:nth-child(1){top:8%;left:7%;animation-delay:0s}
-.ldeco span:nth-child(2){top:15%;right:9%;animation-delay:1.5s;font-size:2.8rem}
-.ldeco span:nth-child(3){top:55%;left:4%;animation-delay:3s;font-size:1.5rem}
-.ldeco span:nth-child(4){bottom:18%;right:7%;animation-delay:.8s;font-size:2.2rem}
-.ldeco span:nth-child(5){bottom:8%;left:22%;animation-delay:2.3s;font-size:1.4rem}
-.ldeco span:nth-child(6){top:38%;right:4%;animation-delay:4s}
-@keyframes floaty{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-14px) rotate(8deg)}}
 
-.lcard{
-  background:white;border-radius:20px;padding:2.4rem 1.8rem;
-  width:100%;max-width:340px;
-  box-shadow:0 8px 40px rgba(79,99,210,.14);
-  text-align:center;animation:popIn .4s cubic-bezier(.34,1.56,.64,1);
+function enterApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  const nav = document.getElementById('bottom-nav');
+  if (isAdmin) {
+    document.getElementById('admin-chip').style.display  = '';
+    document.getElementById('admin-nav').style.display   = '';
+    document.getElementById('tab-approve').style.display = '';
+    nav.className = 'bottom-nav nav-5';
+  } else {
+    nav.className = 'bottom-nav nav-4';
+  }
+  const d = new Date();
+  document.getElementById('topbar-date').textContent =
+    `${d.getMonth()+1}/${d.getDate()} (${['일','월','화','수','목','금','토'][d.getDay()]})`;
+  loadHome();
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 }
-@keyframes popIn{from{opacity:0;transform:scale(.93) translateY(14px)}to{opacity:1;transform:none}}
-.llogo-icon{
-  width:64px;height:64px;border-radius:18px;
-  background:linear-gradient(135deg,var(--accent),#7C55D8);
-  display:flex;align-items:center;justify-content:center;
-  font-size:2rem;margin:0 auto .8rem;
-  box-shadow:0 5px 18px rgba(79,99,210,.3);
+
+function logout() {
+  isAdmin = false;
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('admin-chip').style.display  = 'none';
+  document.getElementById('admin-nav').style.display   = 'none';
+  document.getElementById('tab-approve').style.display = 'none';
+  document.getElementById('code-input').value = '';
 }
-.llogo-name{font-size:1.55rem;font-weight:800;color:var(--accent);letter-spacing:-.5px}
-.llogo-sub{font-size:.77rem;color:var(--text2);margin-top:.2rem;margin-bottom:1.8rem}
-.l-label{font-size:.73rem;font-weight:600;color:var(--text2);text-align:left;margin-bottom:.4rem}
-.l-input{
-  width:100%;padding:.88rem 1.1rem;background:var(--bg2);
-  border:2px solid transparent;border-radius:var(--r);
-  font-size:1.1rem;letter-spacing:4px;text-align:center;color:var(--text);
-  transition:border-color .2s;margin-bottom:1rem;
+
+/* ══════════════════════════════════════
+   NAVIGATION
+══════════════════════════════════════ */
+function showPage(name) {
+  if (name === 'admin' && !isAdmin) return;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.bnav').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  const nb = document.querySelector(`.bnav[data-page="${name}"]`);
+  if (nb) nb.classList.add('active');
+  if (name === 'home')   loadHome();
+  if (name === 'games')  loadGamesPage();
+  if (name === 'rental') loadRentalPage();
+  if (name === 'notice') loadNotices();
+  if (name === 'admin')  loadAdminPage();
 }
-.l-input:focus{border-color:var(--accent);background:white}
-.l-btn{
-  width:100%;padding:.88rem;border-radius:var(--r);
-  background:var(--accent);color:white;
-  font-size:.94rem;font-weight:700;
-  box-shadow:0 3px 14px rgba(79,99,210,.28);transition:all .18s;
-}
-.l-btn:active{transform:scale(.97);opacity:.9}
-.l-err{font-size:.8rem;color:var(--red);min-height:1.2em;margin-top:.5rem}
 
-/* ═══════════════════════
-   APP SHELL
-═══════════════════════ */
-#app{display:none;min-height:100vh;padding-bottom:72px}
-
-.topbar{
-  position:sticky;top:0;z-index:90;
-  background:white;border-bottom:1px solid var(--border);
-  padding:.78rem 1rem;
-  display:flex;align-items:center;justify-content:space-between;
-}
-.topbar-logo{font-size:1.1rem;font-weight:800;color:var(--accent);cursor:pointer;display:flex;align-items:center;gap:.3rem}
-.topbar-right{display:flex;align-items:center;gap:.5rem}
-.admin-chip{font-size:.62rem;font-weight:700;padding:.2rem .55rem;background:var(--accent-lt);color:var(--accent);border-radius:var(--rfull)}
-.btn-logout{font-size:.7rem;color:var(--text2);background:none;padding:.28rem .6rem;border:1px solid var(--border);border-radius:var(--rfull)}
-
-.bottom-nav{
-  position:fixed;bottom:0;left:0;right:0;z-index:90;
-  background:white;border-top:1px solid var(--border);
-  display:grid;padding:.28rem 0 max(.28rem,env(safe-area-inset-bottom));
-}
-.bottom-nav.nav-4{grid-template-columns:repeat(4,1fr)}
-.bottom-nav.nav-5{grid-template-columns:repeat(5,1fr)}
-.bnav{
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:.15rem;padding:.38rem .2rem;
-  background:none;color:var(--text3);font-size:.58rem;font-weight:600;transition:color .15s;
-}
-.bnav .bi{font-size:1.25rem;transition:transform .15s}
-.bnav.active{color:var(--accent)}
-.bnav.active .bi{transform:scale(1.1)}
-
-/* Pages */
-.page{display:none;padding:.9rem 1rem 1.5rem;max-width:600px;margin:0 auto}
-.page.active{display:block;animation:fadeUp .2s ease}
-@keyframes fadeUp{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
-
-.sec-title{font-size:1.15rem;font-weight:800;margin-bottom:.2rem}
-.sec-sub{font-size:.77rem;color:var(--text2);margin-bottom:1rem}
-
-/* Card */
-.card{background:white;border-radius:var(--r);padding:1.05rem;box-shadow:var(--shadow);border:1px solid var(--border);margin-bottom:.7rem}
-.card-section-title{font-size:.88rem;font-weight:700;margin-bottom:.9rem;color:var(--text)}
-
-/* two-col grid helper */
-.two-col{display:grid;grid-template-columns:1fr 1fr;gap:.65rem}
-
-/* Divider */
-.divider{height:1px;background:var(--border);margin:.8rem 0}
-
-/* Pill */
-.pill{display:inline-flex;align-items:center;gap:.2rem;font-size:.66rem;font-weight:700;padding:.19rem .55rem;border-radius:var(--rfull)}
-.p-accent {background:var(--accent-lt);color:var(--accent)}
-.p-green  {background:var(--green-lt);color:var(--green)}
-.p-red    {background:var(--red-lt);color:var(--red)}
-.p-orange {background:var(--orange-lt);color:var(--orange)}
-.p-yellow {background:var(--yellow-lt);color:var(--yellow)}
-.p-blue   {background:var(--blue-lt);color:var(--blue)}
-.p-purple {background:var(--purple-lt);color:var(--purple)}
-.p-gray   {background:var(--bg2);color:var(--text2)}
-.p-pink   {background:#FCE8F0;color:#A8305C}
-
-/* Buttons */
-.btn{
-  display:inline-flex;align-items:center;justify-content:center;gap:.32rem;
-  padding:.68rem 1.25rem;border-radius:var(--r);
-  font-size:.86rem;font-weight:700;transition:all .14s;
-}
-.btn:active{transform:scale(.96);opacity:.88}
-.btn-primary{background:var(--accent);color:white;box-shadow:0 2px 8px rgba(79,99,210,.22)}
-.btn-outline{background:white;border:1.5px solid var(--border);color:var(--text2)}
-.btn-green  {background:var(--green);color:white}
-.btn-red    {background:var(--red-lt);color:var(--red)}
-.btn-yellow {background:var(--yellow-lt);color:var(--yellow);border:1px solid #EDD88A}
-.btn-blue   {background:var(--blue);color:white}
-.btn-ghost  {background:none;color:var(--text2)}
-.btn-sm{padding:.4rem .8rem;font-size:.74rem;border-radius:var(--rsm)}
-.btn-full{width:100%}
-
-/* Form */
-.fg{margin-bottom:.85rem}
-.flabel{display:block;font-size:.72rem;font-weight:600;color:var(--text2);margin-bottom:.35rem}
-.finput,.fselect,.ftextarea{
-  width:100%;padding:.72rem .88rem;
-  background:var(--bg);border:1.5px solid var(--border);border-radius:var(--r);
-  font-size:.87rem;color:var(--text);transition:border-color .16s,background .16s;
-}
-.finput:focus,.fselect:focus,.ftextarea:focus{border-color:var(--accent);background:white}
-.finput::placeholder,.ftextarea::placeholder{color:var(--text3)}
-.ftextarea{resize:vertical;min-height:78px}
-
-/* Spinner / Empty */
-.spin-wrap{display:flex;align-items:center;justify-content:center;padding:2.5rem}
-.spinner{width:22px;height:22px;border:3px solid var(--bg2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-.empty{text-align:center;padding:2.5rem 1rem;color:var(--text2)}
-.empty .ei{font-size:2rem;margin-bottom:.55rem}
-.empty p{font-size:.86rem}
-
-/* ═══════════════════════
+/* ══════════════════════════════════════
    HOME
-═══════════════════════ */
-.home-hero{
-  background:linear-gradient(130deg,var(--accent),#7C55D8);
-  border-radius:var(--r);padding:1.25rem 1.15rem;margin-bottom:.8rem;
-  color:white;position:relative;overflow:hidden;
+══════════════════════════════════════ */
+async function loadHome() {
+  try {
+    const [gRes, rRes, nRes, pRes] = await Promise.all([
+      sb.from('games').select('id,is_available'),
+      sb.from('rentals').select('id').eq('status','approved'),
+      sb.from('notices').select('*').order('created_at',{ascending:false}).limit(4),
+      sb.from('rentals').select('id').eq('status','pending'),
+    ]);
+    const gs = gRes.data||[], ns = nRes.data||[];
+    document.getElementById('st-total').textContent   = gs.length;
+    document.getElementById('st-rented').textContent  = (rRes.data||[]).length;
+    document.getElementById('st-avail').textContent   = gs.filter(g=>g.is_available).length;
+    document.getElementById('st-pending').textContent = (pRes.data||[]).length;
+
+    const hn = document.getElementById('home-notices');
+    hn.innerHTML = ns.length
+      ? ns.map(n=>`
+        <div class="hnotice-item">
+          <span class="pill ${catPill(n.category)}">${catLabel(n.category)}</span>
+          <div class="hnotice-txt">${esc(n.title)}</div>
+          <div class="hnotice-date">${fmt(n.created_at)}</div>
+        </div>`).join('')
+      : '<div class="empty"><div class="ei">📭</div><p>공지가 없어요</p></div>';
+
+    const {data:activeRent} = await sb.from('rentals')
+      .select('*').in('status',['approved','pending'])
+      .order('rented_at',{ascending:false}).limit(5);
+    const hrEl = document.getElementById('home-rentals');
+    if (!activeRent||!activeRent.length) {
+      hrEl.innerHTML='<div class="empty"><div class="ei">📭</div><p>대여 중인 게임이 없어요</p></div>';
+    } else {
+      const gids = [...new Set(activeRent.map(r=>r.game_id))];
+      const {data:gl} = await sb.from('games').select('id,title').in('id',gids);
+      const gmap = Object.fromEntries((gl||[]).map(g=>[g.id,g.title]));
+      hrEl.innerHTML = activeRent.map(r=>`
+        <div class="hrental-item">
+          <div>
+            <div class="hrental-name">${esc(gmap[r.game_id]||'?')}</div>
+            <div class="hrental-who">${esc(r.renter_name)} · ${r.status==='pending'?'승인 대기중':r.due_date?'~'+fmt(r.due_date):''}</div>
+          </div>
+          <span class="pill ${r.status==='pending'?'p-yellow':'p-red'}">${r.status==='pending'?'⏳ 대기':'대여중'}</span>
+        </div>`).join('');
+    }
+  } catch(e) { console.error(e); }
 }
-.hero-deco{position:absolute;right:-4px;top:-6px;font-size:4.5rem;opacity:.1;transform:rotate(15deg)}
-.hero-sub{font-size:.74rem;opacity:.78;margin-bottom:.2rem}
-.hero-name{font-size:1.4rem;font-weight:800;line-height:1.25}
-.hero-desc{font-size:.73rem;opacity:.68;margin-top:.28rem}
 
-.stats-row{display:grid;grid-template-columns:1fr 1fr;gap:.55rem;margin-bottom:.8rem}
-.sbox{
-  background:white;border-radius:var(--r);padding:.82rem .95rem;
-  box-shadow:var(--shadow);border:1px solid var(--border);
-  display:flex;align-items:center;gap:.65rem;cursor:pointer;transition:all .12s;
+/* ══════════════════════════════════════
+   GAMES
+══════════════════════════════════════ */
+async function loadGamesPage() {
+  document.getElementById('games-list').innerHTML='<div class="spin-wrap"><div class="spinner"></div></div>';
+  const {data,error} = await sb.from('games_with_stats').select('*');
+  if (error) { document.getElementById('games-list').innerHTML=`<div class="empty"><p>오류: ${error.message}</p></div>`; return; }
+  allGames = data||[];
+  renderGames();
 }
-.sbox:active{transform:scale(.97)}
-.sicon{font-size:1.4rem}
-.sval{font-size:1.35rem;font-weight:800;line-height:1;color:var(--text)}
-.slbl{font-size:.65rem;color:var(--text2);margin-top:.1rem}
 
-.home-stitle{font-size:.86rem;font-weight:700;margin-bottom:.5rem;display:flex;justify-content:space-between;align-items:center}
-.home-more{font-size:.72rem;color:var(--accent);font-weight:600;background:none}
-
-.hnotice-item{display:flex;gap:.55rem;align-items:flex-start;padding:.6rem 0;border-bottom:1px solid var(--border)}
-.hnotice-item:last-child{border-bottom:none;padding-bottom:0}
-.hnotice-txt{font-size:.81rem;font-weight:500;flex:1;line-height:1.4}
-.hnotice-date{font-size:.66rem;color:var(--text3);flex-shrink:0;margin-top:2px}
-
-.hrental-item{display:flex;justify-content:space-between;align-items:center;padding:.56rem 0;border-bottom:1px solid var(--border)}
-.hrental-item:last-child{border-bottom:none}
-.hrental-name{font-size:.83rem;font-weight:600}
-.hrental-who{font-size:.68rem;color:var(--text2)}
-
-/* ═══════════════════════
-   GAME LIST
-═══════════════════════ */
-.filter-scroll{display:flex;gap:.38rem;overflow-x:auto;padding-bottom:.38rem;margin-bottom:.6rem;scrollbar-width:none}
-.filter-scroll::-webkit-scrollbar{display:none}
-.ftag{
-  flex-shrink:0;padding:.36rem .78rem;border-radius:var(--rfull);
-  font-size:.73rem;font-weight:600;background:white;
-  border:1.5px solid var(--border);color:var(--text2);transition:all .12s;
+function renderGames() {
+  const q = (document.getElementById('srch-q')?.value||'').toLowerCase();
+  let list = allGames.filter(g => {
+    if (q && !g.title.toLowerCase().includes(q)) return false;
+    if (gFilters.genre!=='all' && g.genre!==gFilters.genre) return false;
+    if (gFilters.players==='2' && g.min_players>2) return false;
+    if (gFilters.players==='4' && g.max_players<4) return false;
+    if (gFilters.players==='6' && g.max_players<6) return false;
+    if (gFilters.diff==='easy' && g.difficulty>2) return false;
+    if (gFilters.diff==='mid'  && (g.difficulty<2||g.difficulty>3)) return false;
+    if (gFilters.diff==='hard' && g.difficulty<4) return false;
+    if (gFilters.avail==='yes' && !g.is_available) return false;
+    return true;
+  });
+  list.sort((a,b) => {
+    if (gSort==='recommend_count') return (b.recommend_count||0)-(a.recommend_count||0);
+    if (gSort==='min_players')     return a.min_players-b.min_players;
+    if (gSort==='min_time')        return a.min_time-b.min_time;
+    if (gSort==='difficulty')      return a.difficulty-b.difficulty;
+    return new Date(b.registered_at)-new Date(a.registered_at);
+  });
+  const el = document.getElementById('games-list');
+  if (!list.length) { el.innerHTML='<div class="empty"><div class="ei">🔍</div><p>조건에 맞는 게임이 없어요</p></div>'; return; }
+  el.innerHTML = list.map(g=>`
+    <div class="gitem" onclick="openGameModal('${g.id}','games')">
+      <div class="gthumb">
+        ${g.image_url?`<img src="${esc(g.image_url)}" alt="${esc(g.title)}" loading="lazy" onerror="this.parentElement.innerHTML='🎲'">`:'🎲'}
+      </div>
+      <div class="gbody">
+        <div class="ggenre">${esc(g.genre)}</div>
+        <div class="gtitle">${esc(g.title)}</div>
+        <div class="gtags">
+          <span class="pill p-yellow">👥 ${g.min_players}~${g.max_players}명</span>
+          <span class="pill p-blue">⏱ ${g.min_time}~${g.max_time}분</span>
+          <span class="pill p-purple">${'★'.repeat(g.difficulty)}${'☆'.repeat(5-g.difficulty)}</span>
+          <span class="pill ${g.is_available?'p-green':'p-red'}">${g.is_available?'✅ 가능':'❌ 대여중'}</span>
+        </div>
+        <div class="gfoot">
+          <div class="gstats">👍 ${g.recommend_count||0} · 💬 ${g.review_count||0}</div>
+          <div style="font-size:.68rem;color:var(--text3)">${fmt(g.registered_at)}</div>
+        </div>
+      </div>
+    </div>`).join('');
 }
-.ftag.on{background:var(--accent);border-color:var(--accent);color:white}
 
-.srch-wrap{position:relative;margin-bottom:.6rem}
-.srch-icon{position:absolute;left:.82rem;top:50%;transform:translateY(-50%);font-size:.88rem;pointer-events:none;color:var(--text3)}
-.srch-input{
-  width:100%;padding:.72rem .88rem .72rem 2.3rem;
-  background:white;border:1.5px solid var(--border);border-radius:var(--r);
-  font-size:.86rem;color:var(--text);transition:border-color .16s;
+function gFilter(type, val, btn) {
+  if (type==='avail') {
+    const isOn = btn.classList.contains('on');
+    btn.classList.toggle('on', !isOn);
+    gFilters.avail = isOn?'all':'yes';
+    renderGames(); return;
+  }
+  gFilters[type] = val;
+  const row = btn.closest('.filter-scroll');
+  if (row) row.querySelectorAll('.ftag').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  renderGames();
 }
-.srch-input:focus{border-color:var(--accent)}
-.srch-input::placeholder{color:var(--text3)}
 
-.sort-bar{display:flex;gap:.35rem;overflow-x:auto;margin-bottom:.8rem;scrollbar-width:none}
-.sort-bar::-webkit-scrollbar{display:none}
-
-.gitem{
-  background:white;border-radius:var(--r);border:1px solid var(--border);
-  box-shadow:var(--shadow);margin-bottom:.65rem;overflow:hidden;
-  display:flex;cursor:pointer;transition:box-shadow .12s,transform .12s;
+function setSort(val, btn) {
+  gSort = val;
+  btn.closest('.sort-bar').querySelectorAll('.ftag').forEach(b => {
+    if (b.id!=='avail-filter') b.classList.remove('on');
+  });
+  btn.classList.add('on');
+  renderGames();
 }
-.gitem:active{transform:scale(.985);box-shadow:none}
-.gthumb{
-  width:84px;flex-shrink:0;background:var(--bg);
-  display:flex;align-items:center;justify-content:center;
-  font-size:1.9rem;overflow:hidden;
-}
-.gthumb img{width:100%;height:100%;object-fit:cover}
-.gbody{flex:1;padding:.8rem .82rem .8rem .7rem;min-width:0}
-.ggenre{font-size:.62rem;color:var(--accent);font-weight:700;margin-bottom:.14rem;letter-spacing:.3px}
-.gtitle{font-size:.91rem;font-weight:700;margin-bottom:.38rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.gtags{display:flex;flex-wrap:wrap;gap:.22rem;margin-bottom:.38rem}
-.gfoot{display:flex;justify-content:space-between;align-items:center}
-.gstats{font-size:.67rem;color:var(--text2)}
 
-/* ═══════════════════════
+/* ══════════════════════════════════════
    GAME DETAIL PAGE
-═══════════════════════ */
-#page-game-detail{
-  padding:0 0 2rem;   /* 상단 topbar 포함되므로 padding-top 없음 */
+══════════════════════════════════════ */
+let prevPage = 'games';
+
+async function openGameModal(id, from) {
+  prevPage = from || 'games';
+  currentGameId = id;
+
+  // 현재 페이지 숨기고 상세 페이지 열기
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.bnav').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-game-detail').classList.add('active');
+  window.scrollTo(0, 0);
+
+  // 로딩 표시
+  document.getElementById('gd-hero').innerHTML = '<div class="spin-wrap"><div class="spinner"></div></div>';
+  document.getElementById('gd-title').textContent = '불러오는 중...';
+  document.getElementById('gd-genre').textContent = '';
+  document.getElementById('gd-tags').innerHTML   = '';
+  document.getElementById('gd-desc').textContent  = '';
+  document.getElementById('gd-actions').innerHTML = '';
+  document.getElementById('gd-rev-list').innerHTML = '';
+  document.getElementById('gd-rev-count').textContent = '';
+
+  const {data: g} = await sb.from('games_with_stats').select('*').eq('id', id).single();
+  if (!g) return;
+
+  // 히어로
+  document.getElementById('gd-hero').innerHTML = g.image_url
+    ? `<img src="${esc(g.image_url)}" alt="${esc(g.title)}">
+       <div class="gd-hero-badge"><span class="pill ${g.is_available ? 'p-green' : 'p-red'}">${g.is_available ? '✅ 대여 가능' : '❌ 대여 중'}</span></div>`
+    : `🎲<div class="gd-hero-badge"><span class="pill ${g.is_available ? 'p-green' : 'p-red'}">${g.is_available ? '✅ 대여 가능' : '❌ 대여 중'}</span></div>`;
+
+  document.getElementById('gd-genre').textContent = g.genre || '';
+  document.getElementById('gd-title').textContent  = g.title;
+  document.getElementById('gd-tags').innerHTML = `
+    <span class="pill p-yellow">👥 ${g.min_players}~${g.max_players}명</span>
+    <span class="pill p-blue">⏱ ${g.min_time}~${g.max_time}분</span>
+    <span class="pill p-purple">${'★'.repeat(g.difficulty)}${'☆'.repeat(5 - g.difficulty)}</span>
+    <span class="pill p-gray">📅 ${fmt(g.registered_at)}</span>`;
+  document.getElementById('gd-desc').textContent = g.description || '게임 설명이 없습니다.';
+
+  const {count} = await sb.from('recommendations').select('id', {count: 'exact', head: true}).eq('game_id', id);
+  const {data: myR} = await sb.from('recommendations').select('id').eq('game_id', id).eq('session_id', SID);
+  const liked = !!(myR && myR.length);
+
+  document.getElementById('gd-actions').innerHTML =
+    `<button class="gd-rec-btn ${liked ? 'liked' : ''}" id="gd-rec-btn" onclick="toggleRec()">
+       👍 추천 <span id="gd-rec-num">${count || 0}</span>
+     </button>
+     ${g.youtube_url
+       ? `<a href="${esc(g.youtube_url)}" target="_blank" rel="noopener">
+            <button class="btn btn-sm" style="background:#CC0000;color:white">▶ 유튜브 규칙</button>
+          </a>` : ''}`;
+
+  loadReviews(id);
 }
 
-.gd-topbar{
-  position:sticky;top:48px;   /* 전체 topbar 높이만큼 */
-  z-index:50;
-  background:white;
-  border-bottom:1px solid var(--border);
-  padding:.7rem 1rem;
-  display:flex;align-items:center;
+function closeGameDetail() {
+  document.getElementById('page-game-detail').classList.remove('active');
+  document.getElementById('page-' + prevPage).classList.add('active');
+  const nb = document.querySelector(`.bnav[data-page="${prevPage}"]`);
+  if (nb) nb.classList.add('active');
+  currentGameId = null;
+  window.scrollTo(0, 0);
 }
-.gd-back-btn{
-  display:flex;align-items:center;gap:.35rem;
-  background:none;font-size:.88rem;font-weight:700;color:var(--accent);
-  padding:.3rem .5rem .3rem 0;
-}
-.gd-back-arrow{font-size:1.3rem;font-weight:400;line-height:1;margin-top:-1px}
 
-.gd-hero{
-  width:100%;height:220px;background:var(--bg);
-  display:flex;align-items:center;justify-content:center;
-  font-size:4.5rem;overflow:hidden;position:relative;
+async function loadReviews(id) {
+  const {data} = await sb.from('reviews').select('*').eq('game_id', id).order('created_at', {ascending: false});
+  const list = data || [];
+  document.getElementById('gd-rev-count').textContent = `(${list.length}개)`;
+  document.getElementById('gd-rev-list').innerHTML = list.length
+    ? list.map(r => `
+        <div class="rev-line">
+          <div class="rev-nick-lbl">✍️ ${esc(r.nickname)}</div>
+          <div class="rev-txt">${esc(r.content)}</div>
+          <div class="rev-date">${fmt(r.created_at)}</div>
+        </div>`).join('')
+    : '<div style="font-size:.8rem;color:var(--text3);padding:.5rem 0">첫 번째 한줄평을 남겨보세요!</div>';
 }
-.gd-hero img{width:100%;height:100%;object-fit:cover}
-.gd-hero-badge{position:absolute;top:.7rem;right:.7rem}
 
-.gd-body{padding:1.1rem 1rem 2rem;max-width:600px;margin:0 auto}
-.gd-genre{font-size:.65rem;color:var(--accent);font-weight:700;letter-spacing:.5px;margin-bottom:.22rem}
-.gd-title{font-size:1.42rem;font-weight:800;margin-bottom:.65rem;line-height:1.25;color:var(--text)}
-.gd-tags{display:flex;flex-wrap:wrap;gap:.32rem;margin-bottom:1rem}
-.gd-desc{font-size:.86rem;color:var(--text2);line-height:1.78;margin-bottom:1.1rem}
-.gd-actions{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.1rem}
-.gd-rev-header{font-weight:700;margin-bottom:.62rem;font-size:.9rem;color:var(--text)}
-
-.gd-rec-btn{
-  display:flex;align-items:center;gap:.32rem;
-  padding:.56rem 1.05rem;border-radius:var(--rsm);
-  border:1.5px solid var(--border);background:white;
-  font-size:.81rem;font-weight:700;color:var(--text2);transition:all .16s;
+async function submitReview() {
+  const nick = document.getElementById('gd-rev-nick').value.trim();
+  const text = document.getElementById('gd-rev-text').value.trim();
+  if (!nick || !text) { showToast('닉네임과 내용을 입력해주세요'); return; }
+  await sb.from('reviews').insert({game_id: currentGameId, nickname: nick, content: text});
+  document.getElementById('gd-rev-text').value = '';
+  loadReviews(currentGameId);
+  showToast('✍️ 한줄평이 등록됐어요!');
 }
-.gd-rec-btn.liked{border-color:var(--yellow);color:var(--yellow);background:var(--yellow-lt)}
 
-/* Reviews */
-.rev-form{display:flex;gap:.38rem;margin-bottom:.7rem}
-.rev-nick{
-  width:70px;flex-shrink:0;padding:.6rem .68rem;
-  background:var(--bg);border:1.5px solid var(--border);border-radius:var(--rsm);
-  font-size:.79rem;color:var(--text);transition:border-color .16s;
+async function toggleRec() {
+  const {data: ex} = await sb.from('recommendations').select('id').eq('game_id', currentGameId).eq('session_id', SID);
+  const btn = document.getElementById('gd-rec-btn');
+  const num = parseInt(document.getElementById('gd-rec-num').textContent) || 0;
+  if (ex && ex.length) {
+    await sb.from('recommendations').delete().eq('game_id', currentGameId).eq('session_id', SID);
+    btn.classList.remove('liked');
+    document.getElementById('gd-rec-num').textContent = Math.max(0, num - 1);
+  } else {
+    await sb.from('recommendations').insert({game_id: currentGameId, session_id: SID});
+    btn.classList.add('liked');
+    document.getElementById('gd-rec-num').textContent = num + 1;
+    showToast('👍 추천했어요!');
+  }
 }
-.rev-nick:focus{border-color:var(--accent);background:white}
-.rev-text{
-  flex:1;padding:.6rem .68rem;
-  background:var(--bg);border:1.5px solid var(--border);border-radius:var(--rsm);
-  font-size:.79rem;color:var(--text);transition:border-color .16s;
-}
-.rev-text:focus{border-color:var(--accent);background:white}
-.rev-text::placeholder{color:var(--text3)}
-.rev-sub{padding:.6rem .82rem;background:var(--accent);color:white;border-radius:var(--rsm);font-size:.76rem;font-weight:700}
-.rev-line{padding:.58rem 0;border-bottom:1px solid var(--border)}
-.rev-line:last-child{border-bottom:none}
-.rev-nick-lbl{font-size:.7rem;font-weight:700;color:var(--accent);margin-bottom:.16rem}
-.rev-txt{font-size:.82rem;line-height:1.5}
-.rev-date{font-size:.66rem;color:var(--text3);margin-top:.15rem}
 
-/* ═══════════════════════
+
+// 하위 호환 (게임 목록 카드 onclick에서 호출)
+function closeGameModal() { closeGameDetail(); }
+
+/* ══════════════════════════════════════
    RENTAL
-═══════════════════════ */
-.tab-row{display:flex;background:var(--bg);border-radius:var(--r);padding:.18rem;margin-bottom:.85rem;border:1px solid var(--border)}
-.tab-btn{flex:1;padding:.52rem;border-radius:var(--rsm);font-size:.77rem;font-weight:600;color:var(--text2);background:none;transition:all .16s}
-.tab-btn.active{background:white;color:var(--accent);box-shadow:var(--shadow)}
-
-.ac-wrap{position:relative}
-.ac-list{
-  position:absolute;top:calc(100% + 3px);left:0;right:0;z-index:50;
-  background:white;border:1.5px solid var(--border);border-radius:var(--r);
-  box-shadow:var(--shadow2);max-height:200px;overflow-y:auto;display:none;
+══════════════════════════════════════ */
+function loadRentalPage() {
+  loadRentalStatus();
+  if (isAdmin) loadApproveList();
+  populateAC();
 }
-.ac-list.open{display:block}
-.ac-item{
-  padding:.68rem .88rem;font-size:.83rem;cursor:pointer;
-  display:flex;align-items:center;gap:.58rem;
-  border-bottom:1px solid var(--border);transition:background .1s;
+
+function rentalTab(tab, btn) {
+  btn.closest('.tab-row').querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('rt-apply').style.display   = tab==='apply'   ?'':'none';
+  document.getElementById('rt-status').style.display  = tab==='status'  ?'':'none';
+  document.getElementById('rt-approve').style.display = tab==='approve' ?'':'none';
+  if (tab==='status')  loadRentalStatus();
+  if (tab==='approve') loadApproveList();
 }
-.ac-item:last-child{border-bottom:none}
-.ac-item:hover{background:var(--bg)}
-.ac-thumb{width:32px;height:32px;border-radius:7px;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:.95rem;overflow:hidden;flex-shrink:0;border:1px solid var(--border)}
-.ac-thumb img{width:100%;height:100%;object-fit:cover}
-.ac-title{font-weight:600;font-size:.81rem}
-.ac-avail{font-size:.66rem;color:var(--text2)}
 
-.ritem{background:white;border-radius:var(--r);border:1px solid var(--border);padding:.88rem;margin-bottom:.6rem;box-shadow:var(--shadow)}
-.ritem-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.4rem}
-.ritem-title{font-weight:700;font-size:.89rem}
-.ritem-meta{font-size:.72rem;color:var(--text2);margin-top:.14rem}
-.ritem-foot{display:flex;justify-content:space-between;align-items:center;margin-top:.55rem}
-.ritem-actions{display:flex;gap:.35rem}
+async function populateAC() {
+  const {data} = await sb.from('games').select('id,title,image_url,is_available').order('title');
+  acAll = data||[];
+}
 
-/* ═══════════════════════
+function acSearch(q) {
+  const list = document.getElementById('ac-list');
+  if (!q.trim()) { list.classList.remove('open'); document.getElementById('r-game-id').value=''; return; }
+  const matches = acAll.filter(g=>g.title.toLowerCase().includes(q.toLowerCase())).slice(0,7);
+  if (!matches.length) { list.classList.remove('open'); return; }
+  list.innerHTML = matches.map(g=>`
+    <div class="ac-item" onclick="acSelect('${g.id}','${esc(g.title)}',${g.is_available})">
+      <div class="ac-thumb">
+        ${g.image_url?`<img src="${esc(g.image_url)}" onerror="this.parentElement.innerHTML='🎲'">`:'🎲'}
+      </div>
+      <div>
+        <div class="ac-title">${esc(g.title)}</div>
+        <div class="ac-avail">${g.is_available?'✅ 대여가능':'❌ 대여중 (신청 불가)'}</div>
+      </div>
+    </div>`).join('');
+  list.classList.add('open');
+}
+
+function acSelect(id, title, avail) {
+  document.getElementById('r-game-input').value = title;
+  document.getElementById('r-game-id').value    = avail ? id : '';
+  document.getElementById('ac-list').classList.remove('open');
+  if (!avail) showToast('현재 대여 중인 게임이에요 😢');
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.ac-wrap')) document.getElementById('ac-list')?.classList.remove('open');
+});
+
+async function submitRental() {
+  const name   = document.getElementById('r-name').value.trim();
+  const gameId = document.getElementById('r-game-id').value;
+  const period = parseInt(document.getElementById('r-period').value);
+  const note   = document.getElementById('r-note').value.trim();
+  if (!name)   { showToast('이름을 입력해주세요'); return; }
+  if (!gameId) { showToast('대여 가능한 게임을 선택해주세요'); return; }
+  const {error} = await sb.from('rentals').insert({
+    game_id:gameId, renter_name:name, note, period_days:period, status:'pending'
+  });
+  if (error) { showToast('오류: '+error.message); return; }
+  document.getElementById('r-name').value = '';
+  document.getElementById('r-game-input').value = '';
+  document.getElementById('r-game-id').value = '';
+  document.getElementById('r-note').value = '';
+  showToast('✅ 신청 완료! 관리자 승인을 기다려주세요 🎲');
+  loadHome();
+}
+
+/* ── 연장 신청: 대기 중인 예약 없으면 +3일 가능 ── */
+async function requestExtend(rentalId, gameId, currentDueDate) {
+  // 해당 게임에 pending 대기자가 있는지 확인
+  const {data:waiting} = await sb.from('rentals')
+    .select('id').eq('game_id', gameId).eq('status','pending');
+  if (waiting && waiting.length > 0) {
+    showToast('⚠️ 대기 중인 분이 있어 연장이 불가해요');
+    return;
+  }
+  const newDue = new Date(currentDueDate);
+  newDue.setDate(newDue.getDate()+3);
+  await sb.from('rentals').update({due_date: newDue.toISOString()}).eq('id', rentalId);
+  loadRentalStatus();
+  showToast('📅 반납일이 3일 연장됐어요!');
+}
+
+async function loadRentalStatus() {
+  const el = document.getElementById('rental-status-list');
+  el.innerHTML='<div class="spin-wrap"><div class="spinner"></div></div>';
+  const {data:all} = await sb.from('rentals').select('*')
+    .in('status',['approved','pending','returned'])
+    .order('rented_at',{ascending:false}).limit(30);
+  if (!all||!all.length) { el.innerHTML='<div class="empty"><div class="ei">📭</div><p>대여 내역이 없어요</p></div>'; return; }
+  const gids = [...new Set(all.map(r=>r.game_id))];
+  const {data:gl} = await sb.from('games').select('id,title').in('id',gids);
+  const gmap = Object.fromEntries((gl||[]).map(g=>[g.id,g.title]));
+
+  // 각 게임별 pending 대기자 수 가져오기
+  const {data:pendingAll} = await sb.from('rentals').select('game_id').eq('status','pending');
+  const pendingMap = {};
+  (pendingAll||[]).forEach(r => { pendingMap[r.game_id] = (pendingMap[r.game_id]||0)+1; });
+
+  const statusMap = {pending:'⏳ 대기중', approved:'📦 대여중', returned:'✅ 반납'};
+  const pillMap   = {pending:'p-yellow',  approved:'p-red',     returned:'p-green'};
+
+  el.innerHTML = all.map(r => {
+    const hasWaiting = (pendingMap[r.game_id]||0) > 0 && r.status==='approved';
+    const canExtend  = r.status==='approved' && !hasWaiting;
+    return `
+    <div class="ritem">
+      <div class="ritem-head">
+        <div>
+          <div class="ritem-title">${esc(gmap[r.game_id]||'?')}</div>
+          <div class="ritem-meta">${esc(r.renter_name)} · 신청 ${fmt(r.rented_at)}</div>
+        </div>
+        <span class="pill ${pillMap[r.status]}">${statusMap[r.status]}</span>
+      </div>
+      ${r.due_date ? `
+        <div style="font-size:.75rem;color:var(--text2);display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+          <span>반납예정 ${fmt(r.due_date)}</span>
+          ${canExtend ? `<button class="btn btn-sm" style="padding:.25rem .65rem;font-size:.68rem;background:var(--blue);color:white;border-radius:var(--rfull)" onclick="requestExtend('${r.id}','${r.game_id}','${r.due_date}')">+3일 연장</button>` : ''}
+          ${hasWaiting ? `<span style="color:var(--orange);font-size:.68rem">⚠️ 대기자 있음 (연장 불가)</span>` : ''}
+        </div>` : ''}
+      ${r.note ? `<div style="font-size:.75rem;color:var(--text2);margin-top:.3rem">📝 ${esc(r.note)}</div>` : ''}
+      ${isAdmin && r.status==='approved' ? `
+        <div class="ritem-foot"><div></div>
+          <div class="ritem-actions">
+            <button class="btn btn-green btn-sm" onclick="returnGame('${r.id}','${r.game_id}')">반납 처리</button>
+          </div>
+        </div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+async function loadApproveList() {
+  const el = document.getElementById('rental-approve-list');
+  el.innerHTML='<div class="spin-wrap"><div class="spinner"></div></div>';
+  const {data:pending} = await sb.from('rentals').select('*').eq('status','pending').order('rented_at');
+  if (!pending||!pending.length) { el.innerHTML='<div class="empty"><div class="ei">🎉</div><p>대기 중인 신청이 없어요</p></div>'; return; }
+  const gids = [...new Set(pending.map(r=>r.game_id))];
+  const {data:gl} = await sb.from('games').select('id,title').in('id',gids);
+  const gmap = Object.fromEntries((gl||[]).map(g=>[g.id,g.title]));
+  el.innerHTML = pending.map(r=>`
+    <div class="ritem">
+      <div class="ritem-head">
+        <div>
+          <div class="ritem-title">${esc(gmap[r.game_id]||'?')}</div>
+          <div class="ritem-meta">${esc(r.renter_name)} · ${r.period_days}일 · 신청 ${fmt(r.rented_at)}</div>
+          ${r.note?`<div style="font-size:.73rem;color:var(--text2);margin-top:.2rem">📝 ${esc(r.note)}</div>`:''}
+        </div>
+        <span class="pill p-yellow">⏳ 대기</span>
+      </div>
+      <div class="ritem-foot"><div></div>
+        <div class="ritem-actions">
+          <button class="btn btn-red btn-sm" onclick="rejectRental('${r.id}')">거절</button>
+          <button class="btn btn-primary btn-sm" onclick="approveRental('${r.id}','${r.game_id}',${r.period_days})">✅ 승인</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+async function approveRental(rentalId, gameId, days) {
+  const due = new Date(); due.setDate(due.getDate()+days);
+  await sb.from('rentals').update({status:'approved', approved_at:new Date().toISOString(), due_date:due.toISOString()}).eq('id',rentalId);
+  await sb.from('games').update({is_available:false}).eq('id',gameId);
+  loadApproveList(); loadHome();
+  showToast('✅ 대여 승인 완료!');
+}
+async function rejectRental(rentalId) {
+  if (!confirm('신청을 거절할까요?')) return;
+  await sb.from('rentals').update({status:'rejected'}).eq('id',rentalId);
+  loadApproveList(); loadHome();
+  showToast('🚫 신청이 거절됐어요.');
+}
+async function returnGame(rentalId, gameId) {
+  await sb.from('rentals').update({status:'returned', returned_at:new Date().toISOString()}).eq('id',rentalId);
+  await sb.from('games').update({is_available:true}).eq('id',gameId);
+  loadRentalStatus(); loadHome();
+  showToast('📬 반납 처리 완료!');
+}
+
+/* ══════════════════════════════════════
    NOTICE
-═══════════════════════ */
-.nitem{background:white;border-radius:var(--r);border:1px solid var(--border);padding:.88rem;margin-bottom:.6rem;box-shadow:var(--shadow);cursor:pointer;transition:transform .12s}
-.nitem:active{transform:scale(.985)}
-.nitem-head{display:flex;gap:.48rem;align-items:center;margin-bottom:.38rem}
-.nitem-title{font-size:.89rem;font-weight:700;flex:1}
-.nitem-body{font-size:.78rem;color:var(--text2);line-height:1.52;margin-bottom:.48rem;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
-.nitem-foot{display:flex;justify-content:space-between;align-items:center}
-.nitem-date{font-size:.67rem;color:var(--text3)}
+══════════════════════════════════════ */
+async function loadNotices() {
+  const el = document.getElementById('notice-list');
+  el.innerHTML='<div class="spin-wrap"><div class="spinner"></div></div>';
+  const {data} = await sb.from('notices').select('*').order('created_at',{ascending:false});
+  const list = data||[];
+  if (!list.length) { el.innerHTML='<div class="empty"><div class="ei">📭</div><p>공지가 없어요</p></div>'; return; }
+  el.innerHTML = list.map(n=>`
+    <div class="nitem" onclick="openNoticeModal('${n.id}')">
+      <div class="nitem-head">
+        <span class="pill ${catPill(n.category)}">${catLabel(n.category)}</span>
+        <div class="nitem-title">${esc(n.title)}</div>
+      </div>
+      <div class="nitem-body">${esc(n.content)}</div>
+      <div class="nitem-foot">
+        <div class="nitem-date">${fmt(n.created_at)}${n.updated_at!==n.created_at?' (수정됨)':''}</div>
+      </div>
+    </div>`).join('');
+}
 
-/* Notice modal */
-.nm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.32);z-index:200;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(2px)}
-.nm-overlay.open{display:flex}
-.nm-sheet{background:white;border-radius:18px 18px 0 0;width:100%;max-width:600px;max-height:88vh;overflow-y:auto;animation:sheetUp .24s cubic-bezier(.34,1.3,.64,1);padding-bottom:env(safe-area-inset-bottom)}
-@keyframes sheetUp{from{transform:translateY(100%)}to{transform:none}}
-.mhandle{width:34px;height:4px;background:var(--border);border-radius:2px;margin:.8rem auto .4rem}
-.nm-body{padding:1.1rem 1rem 2.5rem}
-.nm-head{display:flex;gap:.48rem;align-items:center;margin-bottom:.62rem}
-.nm-title{font-size:1.15rem;font-weight:800;line-height:1.35}
-.nm-meta{font-size:.7rem;color:var(--text2);margin-bottom:1rem}
-.nm-content{font-size:.86rem;line-height:1.8;white-space:pre-wrap;color:var(--text)}
+async function openNoticeModal(id) {
+  const {data:n} = await sb.from('notices').select('*').eq('id',id).single();
+  if (!n) return;
+  document.getElementById('nm-badge').className   = `pill ${catPill(n.category)}`;
+  document.getElementById('nm-badge').textContent = catLabel(n.category);
+  document.getElementById('nm-title').textContent   = n.title;
+  document.getElementById('nm-meta').textContent    = fmt(n.created_at)+(n.updated_at!==n.created_at?' · 수정됨':'');
+  document.getElementById('nm-content').textContent = n.content;
+  document.getElementById('notice-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeNoticeModal(e) {
+  if (!e||e.target===document.getElementById('notice-modal')) {
+    document.getElementById('notice-modal').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+}
 
-/* ═══════════════════════
+/* ══════════════════════════════════════
    ADMIN
-═══════════════════════ */
-.img-drop{
-  width:100%;height:112px;border-radius:var(--r);
-  background:var(--bg);border:2px dashed var(--border);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:.32rem;cursor:pointer;overflow:hidden;transition:all .16s;position:relative;
+══════════════════════════════════════ */
+function loadAdminPage() {
+  if (!isAdmin) return;
+  loadAdminNotices();
 }
-.img-drop:hover{border-color:var(--accent);background:var(--accent-lt)}
-.img-drop img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-.img-drop-txt{font-size:.77rem;color:var(--text2);text-align:center;position:relative;z-index:1}
 
-.star-row{display:flex;gap:.22rem}
-.star-btn{font-size:1.45rem;background:none;color:var(--border);transition:color .1s;line-height:1}
-.star-btn.on{color:#D4A017}
-
-.ag-row{display:flex;align-items:center;gap:.65rem;padding:.68rem;background:white;border-radius:var(--rsm);border:1px solid var(--border);margin-bottom:.42rem}
-.ag-thumb{width:38px;height:38px;border-radius:7px;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:1.1rem;overflow:hidden;flex-shrink:0;border:1px solid var(--border)}
-.ag-thumb img{width:100%;height:100%;object-fit:cover}
-.ag-title{flex:1;font-weight:600;font-size:.83rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ag-acts{display:flex;gap:.28rem;flex-shrink:0}
-
-/* CSV */
-.csv-drop{width:100%;border-radius:var(--r);background:var(--bg);border:2px dashed var(--border);padding:1.3rem;text-align:center;cursor:pointer;transition:all .16s}
-.csv-drop:hover,.csv-drop.dragover{background:var(--accent-lt);border-color:var(--accent)}
-.csv-drop-icon{font-size:1.8rem;margin-bottom:.35rem}
-.csv-drop-txt{font-size:.8rem;color:var(--text2)}
-#csv-file-input{display:none}
-
-.csv-preview{background:var(--bg);border-radius:var(--r);padding:.8rem;margin-top:.6rem;max-height:240px;overflow-y:auto;border:1px solid var(--border)}
-.csv-row{display:flex;align-items:center;gap:.5rem;padding:.42rem 0;border-bottom:1px solid var(--border);font-size:.78rem}
-.csv-row:last-child{border-bottom:none}
-.csv-num{font-size:.64rem;color:var(--text3);width:18px;flex-shrink:0;text-align:right}
-.csv-name{font-weight:600;flex:1}
-.csv-meta{font-size:.67rem;color:var(--text2)}
-
-.progress-bar-wrap{height:5px;background:var(--bg2);border-radius:var(--rfull);overflow:hidden;margin:.7rem 0}
-.progress-bar{height:100%;background:var(--accent);border-radius:var(--rfull);transition:width .28s;width:0%}
-
-/* ── Admin edit modal (sheet) ── */
-.moverlay{position:fixed;inset:0;background:rgba(0,0,0,.32);z-index:200;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(2px)}
-.moverlay.open{display:flex}
-.msheet{background:white;border-radius:18px 18px 0 0;width:100%;max-width:600px;max-height:92vh;overflow-y:auto;animation:sheetUp .24s cubic-bezier(.34,1.3,.64,1);padding-bottom:env(safe-area-inset-bottom)}
-.mbody{padding:1rem 1rem 2rem}
-
-/* ═══════════════════════
-   TOAST
-═══════════════════════ */
-.toast{
-  position:fixed;bottom:82px;left:50%;
-  transform:translateX(-50%) translateY(16px);
-  background:#1C1D2E;color:white;
-  padding:.62rem 1.2rem;border-radius:var(--rfull);
-  font-size:.81rem;font-weight:600;z-index:400;
-  opacity:0;transition:all .24s;white-space:nowrap;
-  box-shadow:0 4px 18px rgba(0,0,0,.2);pointer-events:none;
+function adminTab(tab, btn) {
+  document.querySelectorAll('.admin-tabs-row .tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  ['game','notice','gamelist','csv'].forEach(t => {
+    document.getElementById('at-'+t).style.display = t===tab?'':'none';
+  });
+  if (tab==='notice')   loadAdminNotices();
+  if (tab==='gamelist') loadAdminGameList();
 }
-.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── 이미지 업로드 (게임 등록) ── */
+async function handleImgUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  showToast('📸 이미지 업로드 중...');
+  const ext  = file.name.split('.').pop();
+  const path = `${Date.now()}.${ext}`;
+  const {error} = await sb.storage.from('game-images').upload(path, file, {upsert:true});
+  if (error) { showToast('업로드 실패: '+error.message); return; }
+  const {data:{publicUrl}} = sb.storage.from('game-images').getPublicUrl(path);
+  document.getElementById('ag-img-url').value = publicUrl;
+  const drop = document.getElementById('img-drop');
+  drop.innerHTML = `<img src="${publicUrl}"><div class="img-drop-txt" style="background:rgba(0,0,0,.4);color:white;width:100%;text-align:center;padding:.3rem;position:relative;z-index:1">변경하려면 탭</div>`;
+  showToast('✅ 이미지 업로드 완료!');
+}
+
+function setDiff(v) {
+  diffVal = v;
+  document.getElementById('ag-diff').value = v;
+  document.querySelectorAll('#star-row .star-btn').forEach(b=>b.classList.toggle('on',+b.dataset.v<=v));
+}
+
+async function addGame() {
+  const title = document.getElementById('ag-title').value.trim();
+  const minP  = +document.getElementById('ag-minp').value;
+  const maxP  = +document.getElementById('ag-maxp').value;
+  const minT  = +document.getElementById('ag-mint').value;
+  const maxT  = +document.getElementById('ag-maxt').value;
+  if (!title||!minP||!maxP||!minT||!maxT) { showToast('필수 항목을 모두 입력해주세요'); return; }
+  const {error} = await sb.from('games').insert({
+    title,
+    image_url:    document.getElementById('ag-img-url').value||null,
+    min_players:  minP, max_players: maxP,
+    min_time:     minT, max_time:    maxT,
+    genre:        document.getElementById('ag-genre').value,
+    difficulty:   +document.getElementById('ag-diff').value||1,
+    description:  document.getElementById('ag-desc').value.trim()||null,
+    youtube_url:  document.getElementById('ag-yt').value.trim()||null,
+    is_available: document.getElementById('ag-avail').value==='true',
+  });
+  if (error) { showToast('오류: '+error.message); return; }
+  ['ag-title','ag-desc','ag-yt','ag-img-url','ag-minp','ag-maxp','ag-mint','ag-maxt']
+    .forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('img-drop').innerHTML=`<span style="font-size:1.8rem">📸</span><div class="img-drop-txt">탭하여 이미지 업로드</div>`;
+  setDiff(1);
+  showToast('🎲 게임이 등록됐어요!');
+}
+
+/* ── 공지 관리 ── */
+async function loadAdminNotices() {
+  const el = document.getElementById('admin-notice-list');
+  el.innerHTML='<div class="spin-wrap"><div class="spinner"></div></div>';
+  const {data} = await sb.from('notices').select('*').order('created_at',{ascending:false});
+  const list = data||[];
+  if (!list.length) { el.innerHTML='<div class="empty"><div class="ei">📭</div><p>공지가 없어요</p></div>'; return; }
+  el.innerHTML = list.map(n=>`
+    <div class="ritem" style="margin-bottom:.5rem">
+      <div class="ritem-head">
+        <div>
+          <span class="pill ${catPill(n.category)}" style="margin-bottom:.3rem">${catLabel(n.category)}</span>
+          <div class="ritem-title">${esc(n.title)}</div>
+          <div class="ritem-meta">${fmt(n.created_at)}</div>
+        </div>
+      </div>
+      <div style="font-size:.8rem;color:var(--text2);margin:.4rem 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n.content)}</div>
+      <div class="ritem-foot"><div></div>
+        <div class="ritem-actions">
+          <button class="btn btn-outline btn-sm" onclick="editNotice('${n.id}')">✏️ 수정</button>
+          <button class="btn btn-red btn-sm" onclick="deleteNotice('${n.id}')">🗑 삭제</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+async function submitNotice() {
+  const title    = document.getElementById('an-title').value.trim();
+  const content  = document.getElementById('an-content').value.trim();
+  const category = document.getElementById('an-cat').value;
+  const editId   = document.getElementById('an-edit-id').value;
+  if (!title||!content) { showToast('제목과 내용을 입력해주세요'); return; }
+  if (editId) {
+    await sb.from('notices').update({title,content,category,updated_at:new Date().toISOString()}).eq('id',editId);
+    showToast('✅ 공지가 수정됐어요!');
+    cancelNoticeEdit();
+  } else {
+    await sb.from('notices').insert({title,content,category});
+    showToast('📢 공지가 등록됐어요!');
+  }
+  document.getElementById('an-title').value   = '';
+  document.getElementById('an-content').value = '';
+  loadAdminNotices();
+}
+
+async function editNotice(id) {
+  const {data:n} = await sb.from('notices').select('*').eq('id',id).single();
+  if (!n) return;
+  document.getElementById('an-edit-id').value  = n.id;
+  document.getElementById('an-cat').value      = n.category;
+  document.getElementById('an-title').value    = n.title;
+  document.getElementById('an-content').value  = n.content;
+  document.getElementById('notice-form-title').textContent = '✏️ 공지 수정';
+  document.getElementById('an-submit-btn').textContent     = '✅ 수정하기';
+  document.getElementById('an-cancel-btn').style.display   = '';
+  document.getElementById('notice-form-card').scrollIntoView({behavior:'smooth'});
+}
+function cancelNoticeEdit() {
+  document.getElementById('an-edit-id').value = '';
+  document.getElementById('an-title').value   = '';
+  document.getElementById('an-content').value = '';
+  document.getElementById('notice-form-title').textContent = '📢 공지 등록';
+  document.getElementById('an-submit-btn').textContent     = '📢 등록하기';
+  document.getElementById('an-cancel-btn').style.display   = 'none';
+}
+async function deleteNotice(id) {
+  if (!confirm('공지를 삭제할까요?')) return;
+  await sb.from('notices').delete().eq('id',id);
+  loadAdminNotices();
+  showToast('🗑 삭제됐어요.');
+}
+
+/* ══════════════════════════════════════
+   ADMIN — 게임 목록 관리 (수정 포함)
+══════════════════════════════════════ */
+async function loadAdminGameList() {
+  const el = document.getElementById('admin-game-list');
+  el.innerHTML='<div class="spin-wrap"><div class="spinner"></div></div>';
+  const {data} = await sb.from('games').select('*').order('registered_at',{ascending:false});
+  const list = data||[];
+  if (!list.length) { el.innerHTML='<div class="empty"><div class="ei">🎲</div><p>게임이 없어요</p></div>'; return; }
+  el.innerHTML = list.map(g=>`
+    <div class="ag-row" id="agr-${g.id}">
+      <div class="ag-thumb">
+        ${g.image_url?`<img src="${esc(g.image_url)}" onerror="this.parentElement.innerHTML='🎲'">`:'🎲'}
+      </div>
+      <div style="flex:1;min-width:0">
+        <div class="ag-title">${esc(g.title)}</div>
+        <div style="font-size:.65rem;color:var(--text3);margin-top:.1rem">
+          ${g.genre} · 👥${g.min_players}~${g.max_players} · ⏱${g.min_time}~${g.max_time}분 · ${'★'.repeat(g.difficulty)}
+        </div>
+      </div>
+      <span class="pill ${g.is_available?'p-green':'p-red'}" style="flex-shrink:0">${g.is_available?'가능':'대여중'}</span>
+      <div class="ag-acts">
+        <button class="btn btn-yellow btn-sm" onclick="openEditGame('${g.id}')">✏️</button>
+        <button class="btn btn-outline btn-sm" onclick="toggleAvail('${g.id}',${g.is_available})">${g.is_available?'🔒':'🔓'}</button>
+        <button class="btn btn-red btn-sm" onclick="deleteGame('${g.id}')">🗑</button>
+      </div>
+    </div>`).join('');
+}
+
+async function toggleAvail(id, current) {
+  await sb.from('games').update({is_available:!current}).eq('id',id);
+  loadAdminGameList();
+  showToast(`${!current?'✅ 대여 가능':'🔒 대여 불가'}으로 변경됐어요`);
+}
+
+async function deleteGame(id) {
+  if (!confirm('게임을 삭제할까요?')) return;
+  await sb.from('games').delete().eq('id',id);
+  loadAdminGameList();
+  showToast('🗑 게임이 삭제됐어요.');
+}
+
+/* ── 게임 수정 모달 ── */
+async function openEditGame(id) {
+  const {data:g} = await sb.from('games').select('*').eq('id',id).single();
+  if (!g) return;
+
+  editImgUrl  = g.image_url||'';
+  editDiffVal = g.difficulty||1;
+
+  // 폼 채우기
+  document.getElementById('eg-id').value    = g.id;
+  document.getElementById('eg-title').value = g.title;
+  document.getElementById('eg-minp').value  = g.min_players;
+  document.getElementById('eg-maxp').value  = g.max_players;
+  document.getElementById('eg-mint').value  = g.min_time;
+  document.getElementById('eg-maxt').value  = g.max_time;
+  document.getElementById('eg-genre').value = g.genre;
+  document.getElementById('eg-desc').value  = g.description||'';
+  document.getElementById('eg-yt').value    = g.youtube_url||'';
+  document.getElementById('eg-avail').value = g.is_available?'true':'false';
+
+  // 이미지 미리보기
+  const dropEl = document.getElementById('eg-img-drop');
+  if (g.image_url) {
+    dropEl.innerHTML=`<img src="${esc(g.image_url)}"><div class="img-drop-txt" style="background:rgba(0,0,0,.4);color:white;width:100%;text-align:center;padding:.3rem;position:relative;z-index:1">변경하려면 탭</div>`;
+  } else {
+    dropEl.innerHTML=`<span style="font-size:1.8rem">📸</span><div class="img-drop-txt">탭하여 이미지 업로드</div>`;
+  }
+
+  // 난이도 별점
+  setEditDiff(g.difficulty||1);
+
+  document.getElementById('edit-game-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function setEditDiff(v) {
+  editDiffVal = v;
+  document.getElementById('eg-diff').value = v;
+  document.querySelectorAll('#eg-star-row .star-btn').forEach(b=>b.classList.toggle('on',+b.dataset.v<=v));
+}
+
+async function handleEditImgUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  showToast('📸 이미지 업로드 중...');
+  const ext  = file.name.split('.').pop();
+  const path = `edit_${Date.now()}.${ext}`;
+  const {error} = await sb.storage.from('game-images').upload(path, file, {upsert:true});
+  if (error) { showToast('업로드 실패: '+error.message); return; }
+  const {data:{publicUrl}} = sb.storage.from('game-images').getPublicUrl(path);
+  editImgUrl = publicUrl;
+  const drop = document.getElementById('eg-img-drop');
+  drop.innerHTML=`<img src="${publicUrl}"><div class="img-drop-txt" style="background:rgba(0,0,0,.4);color:white;width:100%;text-align:center;padding:.3rem;position:relative;z-index:1">변경하려면 탭</div>`;
+  showToast('✅ 이미지 업로드 완료!');
+}
+
+async function saveEditGame() {
+  const id    = document.getElementById('eg-id').value;
+  const title = document.getElementById('eg-title').value.trim();
+  const minP  = +document.getElementById('eg-minp').value;
+  const maxP  = +document.getElementById('eg-maxp').value;
+  const minT  = +document.getElementById('eg-mint').value;
+  const maxT  = +document.getElementById('eg-maxt').value;
+  if (!title||!minP||!maxP||!minT||!maxT) { showToast('필수 항목을 모두 입력해주세요'); return; }
+
+  const {error} = await sb.from('games').update({
+    title,
+    image_url:    editImgUrl||null,
+    min_players:  minP, max_players: maxP,
+    min_time:     minT, max_time:    maxT,
+    genre:        document.getElementById('eg-genre').value,
+    difficulty:   +document.getElementById('eg-diff').value||1,
+    description:  document.getElementById('eg-desc').value.trim()||null,
+    youtube_url:  document.getElementById('eg-yt').value.trim()||null,
+    is_available: document.getElementById('eg-avail').value==='true',
+  }).eq('id', id);
+
+  if (error) { showToast('오류: '+error.message); return; }
+  closeEditGameModal();
+  loadAdminGameList();
+  showToast('✅ 게임 정보가 수정됐어요!');
+}
+
+function closeEditGameModal(e) {
+  if (!e||e.target===document.getElementById('edit-game-modal')) {
+    document.getElementById('edit-game-modal').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+}
+
+/* ══════════════════════════════════════
+   CSV 일괄 등록
+══════════════════════════════════════ */
+function initCsvDrop() {
+  const dropEl    = document.getElementById('csv-drop');
+  const fileInput = document.getElementById('csv-file-input');
+  dropEl.addEventListener('click', ()=>fileInput.click());
+  dropEl.addEventListener('dragover', e=>{e.preventDefault();dropEl.classList.add('dragover');});
+  dropEl.addEventListener('dragleave', ()=>dropEl.classList.remove('dragover'));
+  dropEl.addEventListener('drop', e=>{
+    e.preventDefault(); dropEl.classList.remove('dragover');
+    const file=e.dataTransfer.files[0]; if(file) handleCsvFile(file);
+  });
+  fileInput.addEventListener('change', e=>{ if(e.target.files[0]) handleCsvFile(e.target.files[0]); });
+}
+
+function handleCsvFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => parseCsv(e.target.result);
+  reader.readAsText(file, 'EUC-KR');
+}
+
+const GENRE_MAP = {
+  '전략':'전략','파티':'파티','협력':'협력','추상':'추상','경제':'경제',
+  '추리':'추리','가족':'가족','주사위':'전략','카드':'파티','디덕션':'추리',
+  '워커배치':'전략','경매':'경제','롤플레잉':'파티','기타':'파티'
+};
+
+function parseCsv(text) {
+  const lines = text.split(/\r?\n/).filter(l=>l.trim());
+  if (lines.length<2) { showToast('CSV 파일을 읽을 수 없어요'); return; }
+  const headers = splitCsvLine(lines[0]);
+  const idx = {
+    title:   headers.findIndex(h=>h.includes('게임명')),
+    players: headers.findIndex(h=>h.includes('인원')),
+    time:    headers.findIndex(h=>h.includes('시간')),
+    genre:   headers.findIndex(h=>h.includes('장르')),
+    diff:    headers.findIndex(h=>h.includes('난이도')),
+    desc:    headers.findIndex(h=>h.includes('설명')),
+    yt:      headers.findIndex(h=>h.includes('규칙')||h.includes('유튜브')||h.includes('링크')),
+  };
+  csvParsed = [];
+  for (let i=1; i<lines.length; i++) {
+    const cols = splitCsvLine(lines[i]);
+    if (!cols[idx.title]?.trim()) continue;
+    const title = cols[idx.title].trim();
+    const [minP,maxP] = parsePlayers(cols[idx.players]||'');
+    const [minT,maxT] = parseTime(cols[idx.time]||'');
+    const diff        = parseDiff(cols[idx.diff]||'');
+    const genre       = parseGenre(cols[idx.genre]||'');
+    const desc        = (cols[idx.desc]||'').trim();
+    const yt          = (cols[idx.yt]||'').trim();
+    csvParsed.push({
+      title, min_players:minP, max_players:maxP,
+      min_time:minT, max_time:maxT,
+      genre, difficulty:diff,
+      description: desc||null,
+      youtube_url: yt.startsWith('http')?yt:null,
+      is_available:true, image_url:null,
+    });
+  }
+  renderCsvPreview();
+}
+
+function splitCsvLine(line) {
+  const result=[]; let cur=''; let inQ=false;
+  for (let i=0; i<line.length; i++) {
+    if (line[i]==='"') { inQ=!inQ; }
+    else if (line[i]===','&&!inQ) { result.push(cur); cur=''; }
+    else { cur+=line[i]; }
+  }
+  result.push(cur);
+  return result.map(s=>s.trim());
+}
+function parsePlayers(s) {
+  const nums=s.replace(/\(.*\)/g,'').match(/\d+/g);
+  if (!nums) return [2,4];
+  return nums.length>=2?[+nums[0],+nums[1]]:[+nums[0],+nums[0]];
+}
+function parseTime(s) {
+  const nums=s.match(/\d+/g);
+  if (!nums) return [30,60];
+  return nums.length>=2?[+nums[0],+nums[1]]:[+nums[0],+nums[0]];
+}
+function parseDiff(s) {
+  const filled=(s.match(/★/g)||[]).length;
+  return Math.max(1,Math.min(5,filled||2));
+}
+function parseGenre(s) {
+  for (const [k,v] of Object.entries(GENRE_MAP)) { if(s.includes(k)) return v; }
+  return '파티';
+}
+function renderCsvPreview() {
+  const wrap = document.getElementById('csv-preview-wrap');
+  if (!csvParsed.length) { wrap.innerHTML=''; return; }
+  wrap.innerHTML=`
+    <div style="font-size:.82rem;font-weight:700;margin-bottom:.6rem;color:var(--text)">
+      📋 총 <span style="color:var(--pink)">${csvParsed.length}개</span> 게임이 파싱됐어요
+    </div>
+    <div class="csv-preview">
+      ${csvParsed.map((g,i)=>`
+        <div class="csv-row">
+          <div class="csv-num">${i+1}</div>
+          <div class="csv-name">${esc(g.title)}</div>
+          <div class="csv-meta">👥${g.min_players}~${g.max_players} · ⏱${g.min_time}~${g.max_time}분 · ${g.genre} · ${'★'.repeat(g.difficulty)}</div>
+        </div>`).join('')}
+    </div>
+    <div class="progress-bar-wrap" id="csv-progress-wrap" style="display:none">
+      <div class="progress-bar" id="csv-progress-bar"></div>
+    </div>
+    <div id="csv-progress-text" style="font-size:.78rem;color:var(--text2);text-align:center;margin-bottom:.6rem;display:none"></div>
+    <button class="btn btn-primary btn-full" onclick="bulkInsertGames()" id="csv-insert-btn">
+      🚀 ${csvParsed.length}개 게임 일괄 등록하기
+    </button>`;
+}
+
+async function bulkInsertGames() {
+  if (!csvParsed.length) return;
+  const btn   = document.getElementById('csv-insert-btn');
+  const pWrap = document.getElementById('csv-progress-wrap');
+  const pBar  = document.getElementById('csv-progress-bar');
+  const pText = document.getElementById('csv-progress-text');
+  btn.disabled=true; btn.textContent='등록 중...';
+  pWrap.style.display=''; pText.style.display='';
+  const BATCH=10; let done=0, errors=0;
+  for (let i=0; i<csvParsed.length; i+=BATCH) {
+    const batch = csvParsed.slice(i,i+BATCH);
+    const {error} = await sb.from('games').insert(batch);
+    if (error) { errors+=batch.length; console.error(error); } else done+=batch.length;
+    const pct = Math.round(((i+batch.length)/csvParsed.length)*100);
+    pBar.style.width=pct+'%';
+    pText.textContent=`${Math.min(i+BATCH,csvParsed.length)} / ${csvParsed.length} 완료`;
+  }
+  btn.disabled=false;
+  if (errors===0) {
+    showToast(`🎲 ${done}개 게임이 등록됐어요!`);
+    csvParsed=[];
+    document.getElementById('csv-preview-wrap').innerHTML='';
+    document.getElementById('csv-file-input').value='';
+  } else {
+    showToast(`⚠️ ${done}개 성공, ${errors}개 실패`);
+  }
+}
+
+/* ══════════════════════════════════════
+   UTILS
+══════════════════════════════════════ */
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmt(iso) {
+  if (!iso) return '—';
+  const d=new Date(iso);
+  return `${d.getFullYear().toString().slice(2)}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+}
+function catPill(c)  { return {important:'p-pink',event:'p-orange',general:'p-gray'}[c]||'p-gray'; }
+function catLabel(c) { return {important:'📌 중요',event:'🎉 이벤트',general:'일반'}[c]||'일반'; }
+
+let toastTimer;
+function showToast(msg) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),3200);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('srch-q')?.addEventListener('input', renderGames);
+  initCsvDrop();
+});
